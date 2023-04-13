@@ -1,6 +1,5 @@
-const amqp = require('amqplib');
-const connectToRabbitMQ = require
 
+const amqp = require('amqplib');
 
 async function publishAuthMessage(token) {
     try {
@@ -33,6 +32,3 @@ async function publishAuthMessage(token) {
   }
 
 
-module.exports = {
-  publishAuthMessage
-};

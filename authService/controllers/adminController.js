@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const db = require('../../config/connect.js');
-const produce = require('../produce')
+const { publishAuthMessage } = require('../produce');
 
 //add admin
 async function add(req, res) {
@@ -64,7 +64,7 @@ async function login(req, res) {
                     const token = jwt.sign({ email: admin }, process.env.TOKEN);
                     console.log("--------->  Admin Login Successful")
                     res.json({ token: token });
-                    produce.publishAuthMessage(token);
+                    publishAuthMessage(token)
                 }
                 else {
                     console.log("---------> Admin's Email or Password are invalid")

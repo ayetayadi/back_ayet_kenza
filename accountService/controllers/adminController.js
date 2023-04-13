@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const db = require('../../config/connect');
-
+const { getReceivedToken } = require('../consume');
 
 //get all the annonceurs
 async function getAll(req, res) {

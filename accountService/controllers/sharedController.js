@@ -3,15 +3,18 @@ require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const db = require('../../config/connect');
 const util = require('util');
-const consume = require('../consume');
+const { getReceivedToken } = require('../consume');
 
 db.query = util.promisify(db.query);
 
 async function verifyRole (req, res){
-    req.query.token = consume.consumeAuthMessage
-    let token = req.query.token;
+    console.log(`The received token is: ${getReceivedToken()}`);
+    let token1 = getReceivedToken()
+    console.log(`token1 ${token1}`);
+    let token = token1;
+    console.log(`token ${token}`);
     let decodedToken = {};
-    let decodedTokenA = { id: '', email: '', username: '', tel: '', nomE: '', emailE: '', domaineE: '', adresseE: ''};
+    let decodedTokenA = { id: '', email: '', username: '',dateNaiss: '', tel: '', nomE: '', emailE: '',telE:'', domaineE: '', adresseE: ''};
 
     try {
         decodedToken = await jwt.verify(token, process.env.TOKEN);
@@ -22,9 +25,9 @@ async function verifyRole (req, res){
     }
 
     const email = decodedToken.email;
-    console.log(email)
+    console.log(`email de l'admin: `+email)
     const emailA = decodedTokenA.email;
-    console.log(emailA)
+    console.log(`email de l'annonceur: `+emailA)
 
     try {
         const adminsQuery = "SELECT * FROM admins WHERE email = ?";
@@ -37,16 +40,17 @@ async function verifyRole (req, res){
             return res.status(200).json({ role: 'admin' });
         } else if (annonceursRows.length > 0) {
             const annonceurData = decodedToken;
-            console.log (this.annonceurData)
-            if (annonceurData.id && annonceurData.username && annonceurData.tel && annonceurData.nomE && annonceurData.emailE && annonceurData.domaineE && annonceurData.adresseE) {
+            if (annonceurData.id && annonceurData.username && annonceurData.dateNaiss && annonceurData.tel && annonceurData.nomE && annonceurData.emailE &&annonceurData.telE && annonceurData.domaineE && annonceurData.adresseE) {
                 return res.status(200).json({ 
                     role: 'annonceur',
                     id: annonceurData.id,
                     username: annonceurData.username,
                     email: emailA,
+                    dateNaiss: annonceurData.dateNaiss,
                     tel: annonceurData.tel,
                     nomE: annonceurData.nomE,
                     emailE: annonceurData.emailE,
+                    telE: annonceurData.telE,
                     domaineE: annonceurData.domaineE,
                     adresseE: annonceurData.adresseE,
                 });
@@ -61,6 +65,7 @@ async function verifyRole (req, res){
         return res.status(500).json({ message: 'Internal server error' });
     }
 };
+
 
 module.exports = {
     verifyRole

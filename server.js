@@ -6,7 +6,9 @@ const authAdminApi = require('./authService/routes/adminRoute');
 const accountAdminApi = require('./accountService/routes.js/adminRoute.js');
 const accountAnnonceurApi = require('./accountService/routes.js/annonceurRoute.js');
 const accountSharedApi = require('./accountService/routes.js/sharedRoute.js');
-
+const teamAdminApi = require('./teamService/routes/adminRoute');
+const teamAnnonceurApi = require('./teamService/routes/annonceurRoute');
+const teamMembreApi = require('./teamService/routes/membreRoute');
 
 require("dotenv").config();
 require('./config/connect');
@@ -21,8 +23,9 @@ app.use(cors(
     }
 ));
 
-app.use('/annonceur', authAnnonceurApi, accountAnnonceurApi);
-app.use('/admin', authAdminApi, accountAdminApi);
+app.use('/annonceur', authAnnonceurApi, accountAnnonceurApi, teamAnnonceurApi);
+app.use('/admin', authAdminApi, accountAdminApi, teamAdminApi);
+app.use('/membre', teamMembreApi);
 app.use('/', accountSharedApi);
 
 app.listen()
