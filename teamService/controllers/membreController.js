@@ -4,9 +4,7 @@ require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const Cookies = require('js-cookie');
 const db = require('../../config/connect');
-const crypto = require('crypto');
-const nodemailer = require('nodemailer');
-const shortid = require('shortid');
+
 
 
 //accept invitation
@@ -34,7 +32,7 @@ async function acceptInvitation(req, res) {
             const member_id = result[0].id;
             const email = result[0].email;
             const code = result[0].code;
-            const token = jwt.sign({ member_id, email, code }, process.env.TOKEN, { expiresIn: '1h' });
+            const token = jwt.sign({ member_id, email, code }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
 
             const sqlUpdateAppartient = "UPDATE appartient SET status = 'accepté' WHERE id_membre = ?";
             const updateValues = [member_id];

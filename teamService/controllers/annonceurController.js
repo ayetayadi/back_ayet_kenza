@@ -190,7 +190,7 @@ async function createTeam(req, res) {
         }
   
         const team_id = result[0].id;
-        //insert member multiple times if it is not invited in the same team
+        //inserere membre plusieurs fois si il n'est pas invité ayu meme team
         const sqlInsertMember = `
         INSERT INTO membres (email, code)
         SELECT ?, ?
@@ -218,7 +218,7 @@ async function createTeam(req, res) {
               console.error(err);
               return res.status(500).send('Failed to insert membership into database');
             }
-            const invitationLink = process.env.INVITATION_LINK;
+            const invitationLink = "http://localhost:4200/invitation";
             const transporter = nodemailer.createTransport({
               service: 'gmail',
               port: 465,

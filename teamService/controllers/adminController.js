@@ -6,7 +6,7 @@ const db = require('../../config/connect');
 
 //get all teams of a specific annonceur
 async function getTeamsByAnnonceur(req, res) {
-    const AnnonceurEmail = req.params.email;
+    const AnnonceurUsername = req.params.username;
   
     db.getConnection(async (err, connection) => {
       if (err) {
@@ -16,17 +16,17 @@ async function getTeamsByAnnonceur(req, res) {
       const sql = `SELECT e.*
       FROM equipes e
       INNER JOIN annonceurs a ON e.id_annonceur = a.id
-      WHERE a.email = ?
+      WHERE a.username = ?
     `;
-      const values = [AnnonceurEmail];
+      const values = [AnnonceurUsername];
       await connection.query(sql,values, async (err, result) => {
         connection.release();
         if (err) {
           console.error(err);
-          return res.status(500).send('Failed to fetch members from database');
+          return res.status(500).send('Failed to fetch teams from database');
         }
         res.send(result);
-        console.log(`Found ${result.length} teams for annonceur "${AnnonceurEmail}"`);
+        console.log(`Found ${result.length} teams for annonceur "${AnnonceurUsername}"`);
         
       });
     });

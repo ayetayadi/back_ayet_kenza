@@ -13,7 +13,7 @@ function verifyToken(req, res, next) {
   let token = getReceivedToken();
   let decodedToken = { id: '', email: '', username: '', dateNaiss: '', tel: '', nomE: '', emailE: '', telE:'', domaineE: '', adresseE: '' };
 
-  jwt.verify(token, process.env.TOKEN, function (err, tokendata) {
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, tokendata) {
     if (err) {
       console.log(err);
       return res.status(400).json({ message: 'Unauthorized request' });
@@ -40,7 +40,7 @@ function verifyToken(req, res, next) {
 function verifyTokenId(req, res, next) {
   let token = getReceivedToken();
 
-  jwt.verify(token, process.env.TOKEN, function (err, tokendata) {
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, tokendata) {
     if (err) {
       console.log(err);
       return res.status(400).json({ message: 'Unauthorized request' });
@@ -56,7 +56,7 @@ function verifyTokenId(req, res, next) {
 function verifyTokenEmail(req, res, next) {
   let token = getReceivedToken();
 
-  jwt.verify(token, process.env.TOKEN, function (err, tokendata) {
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, tokendata) {
     if (err) {
       console.log(err);
       return res.status(400).json({ message: 'Unauthorized request' });
@@ -71,7 +71,7 @@ function verifyTokenEmail(req, res, next) {
 function verifyTokenUsername(req, res, next) {
   let token = getReceivedToken();
 
-  jwt.verify(token, process.env.TOKEN, function (err, tokendata) {
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, tokendata) {
     if (err) {
       console.log(err);
       return res.status(400).json({ message: 'Unauthorized request' });
