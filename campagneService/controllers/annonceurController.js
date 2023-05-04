@@ -75,21 +75,25 @@ async function updateCampagne(req, res) {
             const sqlUpdate = 'UPDATE campagnes SET nom = ?, description = ?, update_date = NOW() WHERE id_annonceur = ? AND nom = ?';
             const update_query = mysql.format(sqlUpdate, [nom, description, id_annonceur, nomA]);
             await connection.query(update_query, async (err, result) => {
-                connection.release();
-                if (err) {
-                    console.error(err);
-                    return res.status(500).send('Failed to update campagne in database');
+                if (err) throw err;
+                if (result.length == 0) {
+                    connection.release();
+                    console.log(`Campagne avec nom ${nomA} n'existe pas`);
+                    res.sendStatus(404);
+                } else {
+                    const sqlUpdate = "UPDATE campagnes SET nom = ?, description = ? WHERE nom = ?";
+                    const update_query = mysql.format(sqlUpdate, [nom, description, nomA]);
+                    await connection.query(update_query, async (err, result) => {
+                        connection.release();
+                        if (err) throw err;
+                        console.log(`Campagne avec nom ${nomA} a été mis à jour`);
+                    });
                 }
-                if (result.affectedRows == 0) {
-                    console.log(`No campagne found for name ${nomA} id_annonceur: ${id_annonceur}`);
-                    return res.status(404).send('Campagne not found');
-                }
-                res.status(200).send(`Campagne ${nomA} updated successfully to  ${nom}`);
             });
         });
     } catch (error) {
         console.log(error);
-        res.status(500).json({ success: false, message: 'Server Error' });
+        res.sendStatus(500);
     }
 };
 

@@ -1,11 +1,9 @@
-function generateHtmlCode(title, subtitle, imageUrl, link) {
-    return `
-      <a href="${link}">
-        <img src="${imageUrl}" alt="${title}" />
-        <h2>${title}</h2>
-        ${subtitle ? `<h3>${subtitle}</h3>` : ''}
-      </a>
-    `;
-  }
+function generateHTMLCode(callToAction, imageUrl) {
+  return `
+    <a href="${callToAction}">
+      <img src="${imageUrl}" alt="" />
+    </a>
+  `;
+}
 
-  module.exports = { generateHtmlCode }
+module.exports = { generateHTMLCode };

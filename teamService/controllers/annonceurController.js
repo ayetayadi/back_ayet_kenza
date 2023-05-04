@@ -190,7 +190,7 @@ async function createTeam(req, res) {
         }
   
         const team_id = result[0].id;
-        //inserere membre plusieurs fois si il n'est pas invité ayu meme team
+        //inserere membre plusieurs fois si il n'est pas invité au meme team
         const sqlInsertMember = `
         INSERT INTO membres (email, code)
         SELECT ?, ?

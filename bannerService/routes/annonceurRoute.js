@@ -5,7 +5,8 @@ const middleware = require('../middlewares/annonceurMiddleware');
 
 
 
-router.post('/createBannerWithImageUpload',middleware.verifyTokenId, annonceurController.createBannerWithImageUpload);
+router.post('/createBannerWithImageUpload/:nom_campagne',middleware.verifyTokenId, annonceurController.createBannerWithImageUpload);
+router.post('/createBannerWithEditor/:nom_campagne',middleware.verifyTokenId, annonceurController.createBannerWithEditor);
 router.get('/getAllBannersByCampagne/:nom_campagne', middleware.verifyTokenId, annonceurController.getAllBannersByCampagne);
 router.get('/getBannerById/:id_banner', annonceurController.getBannerById);
 router.put('/updateBannerById/:id_banner', annonceurController.updateBannerById);

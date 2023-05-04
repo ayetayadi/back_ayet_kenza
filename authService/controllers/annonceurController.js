@@ -4,6 +4,7 @@ require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const db = require('../../config/connect.js');
 const { publishAuthMessage } = require('../produce');
+const Joi = require('joi');
 
 //register Annonceur
 async function register(req, res) {
@@ -64,11 +65,22 @@ async function register(req, res) {
   });
 };
 
+function validateLogin(req) {
+  const schema = Joi.object({
+    email: Joi.string().email().required(),
+    password: Joi.string().required(),
+    rememberMe: Joi.boolean()
+  });
+
+  return schema.validate(req);
+}
+
 //login Annonceur
 async function login(req, res) {
   const annonceur = req.body.email;
   const password = req.body.password;
   const rememberMe = req.body.rememberMe;
+
 
   db.getConnection(async (err, connection) => {
     if (err) throw (err)

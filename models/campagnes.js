@@ -14,3 +14,4 @@ db.query(`CREATE TABLE campagnes (
   if (err) throw err;
   console.log('Table campagnes created successfully!');
 });
+

@@ -1,120 +1,24 @@
 const { BlobServiceClient } = require('@azure/storage-blob');
 const { client, database, container } = require("../../config/cosmosdb");
+const { blobServiceClient, containerClient } = require("../../config/blobStorage");
 const db = require('../../config/connect');
 require('dotenv').config();
 const multer = require('multer');
 const path = require('path');
 const sharp = require('sharp');
-const { generateHtmlCode } = require('../middlewares/bannerMiddleware');
+const { generateHTMLCode } = require('../middlewares/bannerMiddleware');
 const { getReceivedToken } = require('../consume');
+const shortid = require('shortid');
+
 
 // Set up multer storage for image upload
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// Create a new Banner
-const createBannerWithImageUpload = (req, res, next) => {
-    upload.single('image')(req, res, async (err) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).send('Error uploading image');
-        }
-        try {
-            const id_annonceur = req.decodedToken;
-            // Check if campagne exists and retrieve its id
-            const campagneResult = await db.query('SELECT id FROM campagnes WHERE nom = ? AND id_annonceur', [req.body.nom_campagne, id_annonceur]);
-            if (campagneResult.length === 0) {
-                return res.status(400).json({ success: false, message: 'Invalid campagne' });
-            }
-            const id_campagne = campagneResult[0].id;
-    
-            const querySpec = {
-                query: 'SELECT TOP 1 c.id FROM c WHERE c.nom = @nom AND c.nom_campagne = @nom_campagne',
-                parameters: [
-                    {
-                        name: '@nom',
-                        value: req.body.nom
-                    },
-                    {
-                        name: '@nom_campagne',
-                        value: req.params.nom_campagne
-                    }
-                ]
-            };
-    
-            const { resources: existingBanners } = await container.items.query(querySpec).fetchAll();
-            if (existingBanners.length > 0) {
-                return res.status(400).json({ success: false, message: 'A banner with the same name already exists within the specified campagne' });
-            }
-    
-    
-            // Upload image file to Blob Storage and get its URL
-            const file = req.file;
-            if (!file) {
-                return res.status(400).json({ success: false, message: 'No image uploaded' });
-            }
-    
-            // Vérifier si une image a le même nom existe déjà dans le stockage Blob
-            const blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
-            const containerName = process.env.CONTAINERNAME;
-            const containerClient = blobServiceClient.getContainerClient(containerName);
-            const blobName = `${req.file.fieldname}-${Date.now()}${path.extname(req.file.originalname)}`;
-            const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-            const blobExists = await blockBlobClient.exists();
-            let imageUrl;
-            if (blobExists) {
-                imageUrl = blockBlobClient.url;
-            } else {
-                // Upload image file to Blob Storage and get its URL
-                await blockBlobClient.upload(req.file.buffer, req.file.buffer.length);
-                imageUrl = blockBlobClient.url;
-            }
-    
-            // Get image dimensions with sharp
-            const imageBuffer = await sharp(file.buffer).metadata();
-            const { width, height } = imageBuffer;
-    
-            // Générer code HTML for the banner
-            const htmlcode = generateHtmlCode(req.body.title, req.body.subtitle, imageUrl, req.body.link);
-    
-            // Inserer banner dans CosmosDB
-            const newBanner = {
-                nom: req.body.nom,
-                nom_campagne: req.body.nom_campagne,
-                description: req.body.description || null,
-                width, // use image width retrieved by sharp
-                height, // use image height retrieved by sharp
-                link: req.body.link,
-                createdAt: (new Date().toISOString().replace(/:/g, "-")),
-                updateAt: (new Date().toISOString().replace(/:/g, "-")),
-                startDate: req.body.startDate,
-                endDate: req.body.endDate,
-                startTime: req.body.startTime,
-                endTime: req.body.endTime,
-                title: req.body.title,
-                subtitle: req.body.subtitle || null,
-                htmlcode, // save generated HTML code to CosmosDB container
-                status: req.body.status,
-                placeholder: req.body.placeholder || null,
-                image: imageUrl, // save image URL to CosmosDB container
-                id_campagne: id_campagne
-            };
-    
-    
-            const { resource } = await container.items.create(newBanner);
-            res.status(201).send("Created successfully!");
-        } catch (err) {
-            console.error(err);
-            res.status(500).send("Error creating banner in Cosmos DB");
-        }
-    
-    });
-}
-
-// Get All Banners bY nom Campagne
-async function getAllBannersByCampagne(req, res) {
+async function createBannerUpload(req, res) {
     try {
         const id_annonceur = req.decodedToken;
+        // Check if campagne exists and retrieve its id
         const campagneResult = await db.query('SELECT id FROM campagnes WHERE nom = ? AND id_annonceur = ?', [req.params.nom_campagne, id_annonceur]);
         if (campagneResult.length === 0) {
             return res.status(400).json({ success: false, message: 'Invalid campagne' });
@@ -122,38 +26,251 @@ async function getAllBannersByCampagne(req, res) {
         const id_campagne = campagneResult[0].id;
 
         const querySpec = {
-            query: 'SELECT * FROM c WHERE c.nom_campagne = @nom_campagne',
+            query: 'SELECT TOP 1 c.id FROM c WHERE c.nom = @nom AND c.nom_campagne = @nom_campagne',
             parameters: [
+                {
+                    name: '@nom',
+                    value: req.body.nom
+                },
                 {
                     name: '@nom_campagne',
                     value: req.params.nom_campagne
                 }
             ]
         };
-        const { resources: banners } = await container.items.query(querySpec).fetchAll();
 
-        const result = [];
+        const { resources: existingBanners } = await container.items.query(querySpec).fetchAll();
+        if (existingBanners.length > 0) {
+            return res.status(400).json({ success: false, message: 'A banner with the same name déjà est dans la campagne' });
+        }
 
-        for (const banner of banners) {
-            // Get the image blob from Blob Storage
-            const blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
-            const containerName = process.env.CONTAINERNAME;
-            const containerClient = blobServiceClient.getContainerClient(containerName);
+
+        // Upload image file to Blob Storage and get its URL
+        const file = req.file;
+        if (!file) {
+            return res.status(400).json({ success: false, message: 'No image uploaded' });
+        }
+        const blobName = `${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`;
+        const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+        await blockBlobClient.upload(file.buffer, file.buffer.length);
+        const imageUrl = blockBlobClient.url;
+
+        // Get image dimensions using sharp
+        const imageBuffer = await sharp(file.buffer).metadata();
+        const { width, height } = imageBuffer;
+
+        // Generate HTML code for the banner
+        const htmlcode = generateHTMLCode(req.body.callToAction, imageUrl);
+
+        // Insert banner into CosmosDB
+        const newBanner = {
+            nom: req.body.nom,
+            nom_campagne: req.params.nom_campagne,
+            description: req.body.description || null,
+            width, // use image width retrieved by sharp
+            height, // use image height retrieved by sharp
+            callToAction: req.body.callToAction,
+            createdAt: (new Date().toISOString().replace(/:/g, "-")),
+            updateAt: (new Date().toISOString().replace(/:/g, "-")),
+            startDate: req.body.startDate,
+            endDate: req.body.endDate,
+            title: req.body.title,
+            subtitle: req.body.subtitle || null,
+            htmlcode, // save generated HTML code to CosmosDB container
+            status: 'par téléchargement',
+            placeholder: req.body.placeholder || null,
+            plateformeType: req.body.plateformeType || null,
+            image: imageUrl, // save image URL to CosmosDB container
+            id_campagne: id_campagne,
+            reportRef: shortid.generate(),
+            statusPermission: 'en attente'
+        };
+
+
+        const { resource } = await container.items.create(newBanner);
+
+        return res.status(201).json({ success: true, message: 'Created successfully!' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Error creating banner in Cosmos DB' });
+    }
+}
+
+// Route for handling banner creation with image upload
+const createBannerWithImageUpload = (req, res, next) => {
+    upload.single('image')(req, res, (err) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).send('Error upload image');
+        }
+        createBannerUpload(req, res, next);
+    });
+}
+
+async function createBannerEditor(req, res) {
+    try {
+        const { nom, nom_campagne, scene } = req.body;
+
+        // Check if a banner with the same name already exists in the campagne
+        const querySpec = {
+            query: 'SELECT TOP 1 c.id FROM c WHERE c.nom = @nom AND c.nom_campagne = @nom_campagne',
+            parameters: [
+                {
+                    name: '@nom',
+                    value: nom
+                },
+                {
+                    name: '@nom_campagne',
+                    value: nom_campagne
+                }
+            ]
+        };
+
+        const { resources: results } = await container.items.query(querySpec).fetchAll();
+        if (results.length > 0) {
+            return res.status(400).json({ success: false, message: 'A banner with the same name already exists in the campagne' });
+        }
+
+        const base64Data = unescape(scene);
+        const buffer = Buffer.from(base64Data, 'base64');
+
+        // Upload the banner to Azure Blob Storage
+        const blobName = `${nom_campagne}-${Date.now()}.scene`;
+        const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+        await blockBlobClient.upload(buffer, buffer.length, {
+            blobHTTPHeaders: {
+                blobContentType: 'application/octet-stream',
+            },
+        });
+
+        // Create a new banner document in Cosmos DB
+         const banner = {
+            nom_campagne,
+            image: blobName,
+        };
+        const { resource } = await container.items.create(newBanner);
+         // Insert the new banner into the autorisations table
+         const autorisation = {
+            status: 'en_attente',
+            nom_banniere: newBanner.nom,
+            id_admin: 16
+        };
+        await db.query('INSERT INTO autorisations SET ?', autorisation);
+
+        res.json({ success: true, message: 'Banner created successfully' });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Error creating banner' });
+    }
+}
+
+const createBannerWithEditor = (req, res, next) => {
+    upload.single('image')(req, res, (err) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).send('Error saving image');
+        }
+        createBannerEditor(req, res, next);
+    });
+}
+
+// Get All Banners bY nom Campagne
+async function getAllBannersByCampagne(req, res) {
+    try {
+      const id_annonceur = req.decodedToken;
+  
+      // Check if campagne exists and retrieve its id
+      const campagneResult = await db.query('SELECT id FROM campagnes WHERE nom = ? AND id_annonceur = ?', [req.params.nom_campagne, id_annonceur]);
+      if (campagneResult.length === 0) {
+        return res.status(400).json({ success: false, message: 'Invalid campagne' });
+      }
+      const id_campagne = campagneResult[0].id;
+  
+      // Query CosmosDB to get all banners for the specified campagne
+      const querySpec = {
+        query: 'SELECT * FROM c WHERE c.nom_campagne = @nom_campagne',
+        parameters: [
+          {
+            name: '@nom_campagne',
+            value: req.params.nom_campagne
+          }
+        ]
+      };
+      const { resources: banners } = await container.items.query(querySpec).fetchAll();
+  
+      // Pour chaque bannuère, afficher l'image from Blob Storage et l'ajouter à l'objet de la bannière
+      const bannersWithImages = await Promise.all(
+        banners.map(async (banner) => {
             const blobName = path.basename(banner.image);
             const blockBlobClient = containerClient.getBlockBlobClient(blobName);
             const downloadBlockBlobResponse = await blockBlobClient.download();
             const buffer = await streamToBuffer(downloadBlockBlobResponse.readableStreamBody);
             banner.image = buffer.toString('base64');
-
-            result.push(banner);
-        }
-
-        res.status(200).json(result);
+          return { ...banner };
+        })
+      );
+  
+      return res.status(200).json({ success: true, banners: bannersWithImages });
     } catch (err) {
-        console.error(err);
-        res.status(500).send("Error getting banners from Cosmos DB");
+      console.error(err);
+      res.status(500).json({ success: false, message: 'Error retrieving banners from Cosmos DB' });
+    }
+  }
+  
+
+
+// Helper function to convert stream to buffer
+function streamToBuffer(readableStream) {
+    return new Promise((resolve, reject) => {
+        const chunks = [];
+        readableStream.on("data", (data) => {
+            chunks.push(data instanceof Buffer ? data : Buffer.from(data));
+        });
+        readableStream.on("end", () => {
+            resolve(Buffer.concat(chunks));
+        });
+        readableStream.on("error", reject);
+    });
+}
+
+async function deleteBanner(req, res) {
+    try {
+        const nom = req.params.nom;
+
+        // Delete banner record from Cosmos DB
+        const querySpec = {
+            query: 'SELECT TOP 1 c.id FROM c WHERE c.nom = @nom',
+            parameters: [
+                {
+                    name: '@nom',
+                    value: nom
+                }
+            ]
+        };
+        const { resources: banners } = await container.items.query(querySpec).fetchAll();
+        if (banners.length === 0) {
+            return res.status(404).json({ success: false, message: 'Banner not found' });
+        }
+        const banner = banners[0];
+        const { id } = banner;
+        const { body: result } = await container.item(id, undefined).delete();
+
+        // Delete banner blob from Azure Blob Storage
+        const blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
+        const containerName = process.env.CONTAINERNAME;
+        const containerClient = blobServiceClient.getContainerClient(containerName);
+        const blobName = banner.image.split('/').pop(); // extract blob name from image URL
+        const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+        await blockBlobClient.delete();
+
+        return res.status(200).json({ success: true, message: 'Banner deleted successfully' });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ success: false, message: 'Internal server error' });
     }
 }
+
 
 //Get Banner by ID
 async function getBannerById(req, res) {
@@ -272,66 +389,6 @@ async function updateBannerById(req, res) {
 }
 
 
-
-// Helper function to convert stream to buffer
-function streamToBuffer(readableStream) {
-    return new Promise((resolve, reject) => {
-        const chunks = [];
-        readableStream.on("data", (data) => {
-            chunks.push(data instanceof Buffer ? data : Buffer.from(data));
-        });
-        readableStream.on("end", () => {
-            resolve(Buffer.concat(chunks));
-        });
-        readableStream.on("error", reject);
-    });
-}
-
-
-
-
-
-
-
-
-async function deleteBanner(req, res) {
-    try {
-        const nom = req.params.nom;
-
-        // Delete banner record from Cosmos DB
-        const querySpec = {
-            query: 'SELECT TOP 1 c.id FROM c WHERE c.nom = @nom',
-            parameters: [
-                {
-                    name: '@nom',
-                    value: nom
-                }
-            ]
-        };
-        const { resources: banners } = await container.items.query(querySpec).fetchAll();
-        if (banners.length === 0) {
-            return res.status(404).json({ success: false, message: 'Banner not found' });
-        }
-        const banner = banners[0];
-        const { id } = banner;
-        const { body: result } = await container.item(id, undefined).delete();
-
-        // Delete banner blob from Azure Blob Storage
-        const blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
-        const containerName = process.env.CONTAINERNAME;
-        const containerClient = blobServiceClient.getContainerClient(containerName);
-        const blobName = banner.image.split('/').pop(); // extract blob name from image URL
-        const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-        await blockBlobClient.delete();
-
-        return res.status(200).json({ success: true, message: 'Banner deleted successfully' });
-    } catch (error) {
-        console.log(error);
-        return res.status(500).json({ success: false, message: 'Internal server error' });
-    }
-}
-
-
 // Delete a banner
 async function deleteb(req, res) {
     try {
@@ -360,6 +417,7 @@ async function deleteb(req, res) {
 
 module.exports = {
     createBannerWithImageUpload,
+    createBannerWithEditor,
     getAllBannersByCampagne,
     getBannerById,
     updateBannerById,

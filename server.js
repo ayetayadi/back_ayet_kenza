@@ -19,6 +19,7 @@ require("dotenv").config();
 require('./config/connect');
 require('./config/rabbitmq');
 require('./config/cosmosdb');
+require('./config/blobStorage');
 
 const app = express();
 app.use(cookieParser());
