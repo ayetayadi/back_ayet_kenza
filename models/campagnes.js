@@ -7,9 +7,8 @@ db.query(`CREATE TABLE campagnes (
   start_date DATETIME NOT NULL,
   id_admin INT,
   id_annonceur INT,
-  PRIMARY KEY (id, id_admin, id_annonceur),
-  FOREIGN KEY (id_admin) REFERENCES admins(id),
-  FOREIGN KEY (id_annonceur) REFERENCES annonceurs(id)
+  PRIMARY KEY (id, id_annonceur),
+  FOREIGN KEY (id_annonceur) REFERENCES annonceurs(id),
 );`, (err, result) => {
   if (err) throw err;
   console.log('Table campagnes created successfully!');

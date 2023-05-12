@@ -16,16 +16,19 @@ async function verifyRole (req, res){
     console.log(`token ${token}`);
     let decodedToken = {};
     let decodedTokenA = { id: '', email: '', username: '',dateNaiss: '', tel: '', nomE: '', emailE: '',telE:'', domaineE: '', adresseE: ''};
+    let decodedTokenAd = { id: '', email: ''};
 
     try {
         decodedToken = await jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
         decodedTokenA = decodedToken.annonceur ? decodedToken.annonceur : decodedTokenA;
+        decodedTokenAd = decodedToken.admin ? decodedToken.admin : decodedTokenA;
+
     } catch(err) {
         console.log(err);
         return res.status(400).json({ message: 'Unauthorized request' });
     }
 
-    const email = decodedToken.email;
+    const email = decodedTokenAd.email;
     console.log(`email de l'admin: `+email)
     const emailA = decodedTokenA.email;
     console.log(`email de l'annonceur: `+emailA)
@@ -78,7 +81,7 @@ async function getToken (req, res){
     let decodedTokenA = { id: '', email: '', username: '',dateNaiss: '', tel: '', nomE: '', emailE: '',telE:'', domaineE: '', adresseE: ''};
 
     try {
-        decodedToken = await jwt.verify(token, process.env.TOKEN);
+        decodedToken = await jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
         decodedTokenA = decodedToken.annonceur ? decodedToken.annonceur : decodedTokenA;
     } catch(err) {
         console.log(err);

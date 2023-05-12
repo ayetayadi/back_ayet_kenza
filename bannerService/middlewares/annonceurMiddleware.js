@@ -10,7 +10,7 @@ function generateToken(id, username, email, dateNaiss, tel, nomE, emailE,telE, d
 
 //get From Token the data of annonceur
 function verifyToken(req, res, next) {
-  let token = getReceivedToken();
+  let token = req.query.token;
   let decodedToken = { id: '', email: '', username: '', dateNaiss: '', tel: '', nomE: '', emailE: '', telE:'', domaineE: '', adresseE: '' };
 
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, tokendata) {

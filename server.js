@@ -13,7 +13,11 @@ const teamAnnonceurApi = require('./teamService/routes/annonceurRoute');
 const teamMembreApi = require('./teamService/routes/membreRoute');
 const campagneAnnonceurApi = require('./campagneService/routes/annonceurRoute');
 const campagneAdminApi = require('./campagneService/routes/adminRoute');
-const bannerAnnoceurApi = require('./bannerService/routes/annonceurRoute');
+const bannerAnnonceurApi = require('./bannerService/routes/annonceurRoute');
+const bannerAdminApi = require('./bannerService/routes/adminRoute');
+const rapportAnnonceurApi = require('./dashboardService/routes/annonceurRoute');
+const paiementAdminApi = require('./paiementService/routes/adminRoute');
+
 
 require("dotenv").config();
 require('./config/connect');
@@ -34,8 +38,8 @@ app.use(cors(
     }
 ));
 
-app.use('/annonceur', authAnnonceurApi, accountAnnonceurApi, teamAnnonceurApi,campagneAnnonceurApi, bannerAnnoceurApi);
-app.use('/admin', authAdminApi, accountAdminApi, teamAdminApi, campagneAdminApi);
+app.use('/annonceur', authAnnonceurApi, accountAnnonceurApi, teamAnnonceurApi,campagneAnnonceurApi, bannerAnnonceurApi, rapportAnnonceurApi);
+app.use('/admin', authAdminApi, accountAdminApi, teamAdminApi, campagneAdminApi, bannerAdminApi, paiementAdminApi);
 app.use('/membre', teamMembreApi);
 app.use('/', authSharedApi, accountSharedApi);
 

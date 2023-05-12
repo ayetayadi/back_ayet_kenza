@@ -8,7 +8,7 @@ router.post('/createTeam', middleware.verifyTokenId, annonceurController.createT
 router.get('/getTeams', middleware.verifyTokenId, annonceurController.getTeams);
 router.put('/updateTeam/:name', middleware.verifyTokenId, annonceurController.updateTeam);
 router.delete('/deleteTeam/:name', middleware.verifyTokenId, annonceurController.deleteTeam);
-router.post('/inviteMember', middleware.verifyTokenUsername, annonceurController.inviteMember);
+router.post('/inviteMember', middleware.verifyTokenId, annonceurController.inviteMember);
 router.get('/getMembersByTeam/:nom', annonceurController.getMembersByTeam);4
 router.delete('/deleteMember', annonceurController.deleteMember);
 

@@ -12,10 +12,12 @@ db.query(`CREATE TABLE annonceurs (
   telE VARCHAR(45),
   domaineE VARCHAR(255),
   adresseE VARCHAR(255),
+  statut VARCHAR(255),
   password_reset_token VARCHAR(255),
   password_reset_token_expiration VARCHAR(255),
   PRIMARY KEY (id),
   UNIQUE (email)
+
 );`, (err, result) => {
   if (err) throw err;
   console.log('Table annonceurs created successfully!');

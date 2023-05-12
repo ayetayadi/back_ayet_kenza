@@ -65,18 +65,9 @@ async function register(req, res) {
   });
 };
 
-function validateLogin(req) {
-  const schema = Joi.object({
-    email: Joi.string().email().required(),
-    password: Joi.string().required(),
-    rememberMe: Joi.boolean()
-  });
-
-  return schema.validate(req);
-}
-
 //login Annonceur
 async function login(req, res) {
+
   const annonceur = req.body.email;
   const password = req.body.password;
   const rememberMe = req.body.rememberMe;
@@ -113,15 +104,7 @@ async function login(req, res) {
           const accessToken = jwt.sign({ annonceur }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
           const refreshToken = jwt.sign({ annonceur }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '15d' });
 
-          // Enregistrer "remember me" token dans annonceurs table and set it cookie
-          if (rememberMe) {
-            const rememberMeToken = jwt.sign({ annonceur }, process.env.REMEMBER_ME_SECRET, { expiresIn: '90d' });
-            const sqlUpdateToken = 'UPDATE annonceurs SET remember_me_token = ? WHERE id = ?';
-            const update_query = mysql.format(sqlUpdateToken, [rememberMeToken, result[0].id]);
-            await connection.query(update_query);
-            
-            res.cookie('rememberMeToken', rememberMeToken, { httpOnly: true, maxAge: 90 * 24 * 60 * 60 * 1000 }); // 3mois
-          }
+          
 
           res.cookie('accessToken', refreshToken, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }); // un jour
           res.cookie('refreshToken', refreshToken, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 }); // une semaine
@@ -141,9 +124,6 @@ async function login(req, res) {
     })
   })
 };
-
-     
-
 
 async function refreshToken(req, res) {
   try {

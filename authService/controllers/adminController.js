@@ -48,7 +48,6 @@ async function login(req, res) {
   const password = req.body.password;
   const rememberMe = req.body.rememberMe;
 
-
   db.getConnection(async (err, connection) => {
     if (err) throw (err)
     const sqlSearch = "Select * from admins where email = ?"
@@ -66,28 +65,32 @@ async function login(req, res) {
 
         if (await bcrypt.compare(password, hashedPassword)) {
 
-            // Add a cookie to the response
+          const admin = {
+            id: result[0].id,
+            email: result[0].email,
+          }
+
+          const accessToken = jwt.sign({ admin }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
+          const refreshToken = jwt.sign({ admin  }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '15d' });
+/*     // Create access token and refresh token
             const accessToken = jwt.sign({ email:admin }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
             const refreshToken = jwt.sign({ email:admin }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '15d' });
-            if (rememberMe) {
-              const rememberMeToken = jwt.sign({ annonceur }, process.env.REMEMBER_ME_SECRET, { expiresIn: '90d' });
-              
-              const sqlUpdateToken = 'UPDATE admins SET remember_me_token = ? WHERE id = ?';
-              const update_query = mysql.format(sqlUpdateToken, [rememberMeToken, result[0].id]);
-              await connection.query(update_query);
-              res.cookie('rememberMeToken', rememberMeToken, { httpOnly: true, maxAge: 90 * 24 * 60 * 60 * 1000 }); // 3mois
-            }
-
-            res.cookie('accessToken', refreshToken, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }); //1 jour
-            res.cookie('refreshToken', refreshToken, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 }); // une semaine
+           
+            // Set cookies with appropriate expiration times
+            const accessTokenMaxAge = rememberMe ? 90 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000; // 90 days if "remember me" checked, else 1 day
+            const refreshTokenMaxAge = rememberMe ? 90 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000; // 90 days if "remember me" checked, else 7 days
+            res.cookie('accessToken', accessToken, { httpOnly: true, maxAge: accessTokenMaxAge }); 
+            res.cookie('refreshToken', refreshToken, { httpOnly: true, maxAge: refreshTokenMaxAge }); */
+          
+          res.cookie('accessToken', refreshToken, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }); // un jour
+          res.cookie('refreshToken', refreshToken, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 }); // une semaine
   
             res.status(200).json({ accessToken: accessToken });
   
             console.log('---------> Login Admin Successful')
   
             publishAuthMessage(accessToken);
-  
-            publishAuthMessage(accessToken)
+
         }
         else {
           console.log("---------> Admin's Email or Password are invalid")
@@ -97,6 +100,7 @@ async function login(req, res) {
     })
   })
 };
+
 
 async function refreshToken(req, res) {
   try {

@@ -11,3 +11,16 @@ db.query(`CREATE TABLE autorisations (
     if (err) throw err;
     console.log('Table autorisations created successfully!');
   });
+
+
+
+  const containerDef = {
+    id: 'autorisations',
+    partitionKey: {
+      paths: ['/nom_banniere'],
+      kind: 'Hash'
+    }
+  };
+  
+  const { container } = await client.databases.createContainer(`dbs/${DATABASEID}`, containerDef);
+  

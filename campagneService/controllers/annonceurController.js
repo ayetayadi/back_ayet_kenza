@@ -20,7 +20,7 @@ async function createCampagne(req, res) {
         }
 
         // insert the new campagne
-        const result = await db.query(`INSERT INTO campagnes (nom, description, start_date, update_date, id_admin, id_annonceur) VALUES (?, ?, NOW(), NOW(), 0, ?)`, [req.body.nom, req.body.description, id_annonceur]);
+        const result = await db.query(`INSERT INTO campagnes (nom, description, start_date, update_date, id_annonceur) VALUES (?, ?, NOW(), NOW(), ?)`, [req.body.nom, req.body.description, id_annonceur]);
 
         const newCampagneId = result.insertId;
         const newCampagneNom = req.body.nom;

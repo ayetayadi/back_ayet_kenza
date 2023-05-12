@@ -32,7 +32,7 @@ async function acceptInvitation(req, res) {
             const member_id = result[0].id;
             const email = result[0].email;
             const code = result[0].code;
-            const token = jwt.sign({ member_id, email, code }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+            const accessMemberToken = jwt.sign({ member_id, email, code }, process.env.ACCESS_MEMEBER_TOKEN_SECRET, { expiresIn: '1h' });
 
             const sqlUpdateAppartient = "UPDATE appartient SET status = 'accepté' WHERE id_membre = ?";
             const updateValues = [member_id];
@@ -43,7 +43,7 @@ async function acceptInvitation(req, res) {
                     return res.status(500).json({ error: 'Failed to update membership in database' });
                 }
                 const message = 'Invitation accepted successfully';
-                res.json({ message, token });
+                res.json({ message, accessMemberToken });
                 console.log(message);
             });
         });

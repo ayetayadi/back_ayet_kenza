@@ -168,15 +168,16 @@ async function createTeam(req, res) {
     const email = req.body.email;
     const team = req.body.nom;
     const invitationCode = shortid.generate();
-  
+    const id_annonceur = req.decodedToken;
+
     db.getConnection(async (err, connection) => {
       if (err) {
         console.error(err);
         return res.status(500).send('Failed to connect to database');
       }
       //check if the team that I want to invite the member exist or not
-      const sqlSearch = "SELECT * FROM equipes WHERE nom = ?";
-      const search_query = mysql.format(sqlSearch, [team]);
+      const sqlSearch = "SELECT * FROM equipes WHERE nom = ? AND id_annonceur= ?";
+      const search_query = mysql.format(sqlSearch, [team, id_annonceur]);
       await connection.query(search_query, async (err, result) => {
         if (err) {
           console.error(err);
@@ -291,7 +292,7 @@ async function createTeam(req, res) {
             return res.status(500).json({ error: 'Failed to fetch member from database' });
           }
   
-          if (result[0].length === 0) {
+          if (result.length === 0) {
             console.log(`No member found with email : ${email}`);
             connection.release();
             return res.status(404).json({ error: 'No member found' });
