@@ -30,8 +30,9 @@ async function createOffre(req, res) {
                     await connection.query(insert_query, async (err, result) => {
                         connection.release();
                         if (err) throw err;
+                        const newOffre = await db.query('SELECT * FROM offres WHERE nomPack = ?', [nomPack]);
                         console.log(`Offre avec nom du pack ${nomPack} a été ajouté`);
-                        return res.status(200).json({ message: `Offre avec nom du pack ${nomPack} a été ajouté` })
+                        return res.status(200).json({ message: `Offre avec nom du pack ${nomPack} a été ajouté` , offres: newOffre[0]})
 
                     })
                 }
@@ -47,7 +48,7 @@ async function createOffre(req, res) {
 //update offre
 async function updateOffre(req, res) {
     try {
-        const idOffre = req.params.id;
+        const nomOffre = req.params.nomPack;
         const nomPack = req.body.nomPack;
         const description = req.body.description;
         const periodePack = req.body.periodePack;
@@ -56,24 +57,25 @@ async function updateOffre(req, res) {
         // check if the offre with the given ID exists
         db.getConnection(async (err, connection) => {
             if (err) throw err;
-            const sqlSearch = 'SELECT * FROM offres WHERE idOffre = ?';
-            const searchQuery = mysql.format(sqlSearch, [idOffre]);
+            const sqlSearch = 'SELECT * FROM offres WHERE nomPack = ?';
+            const searchQuery = mysql.format(sqlSearch, [nomOffre]);
             await connection.query(searchQuery, async (err, result) => {
                 if (err) throw err;
                 if (result.length === 0) {
                     connection.release();
-                    console.log(`Offre avec ID ${idOffre} n'existe pas`);
-                    return res.status(404).json({ message: `Offre avec ID ${idOffre} n'existe pas` });
+                    console.log(`Offre avec le nom ${nomOffre} n'existe pas`);
+                    return res.status(404).json({ message: `Offre avec le nom ${nomOffre} n'existe pas` });
                 }
                 else {
                     // update the existing offre record
-                    const sqlUpdate = 'UPDATE offres SET nomPack=?, description=?, periodePack=?, prixPack=? WHERE idOffre=?';
-                    const updateQuery = mysql.format(sqlUpdate, [nomPack, description, periodePack, prixPack, idOffre]);
+                    const sqlUpdate = 'UPDATE offres SET nomPack=?, description=?, periodePack=?, prixPack=? WHERE nomPack=?';
+                    const updateQuery = mysql.format(sqlUpdate, [nomPack, description, periodePack, prixPack, nomOffre]);
                     await connection.query(updateQuery, async (err, result) => {
                         connection.release();
                         if (err) throw err;
-                        console.log(`Offre avec ID ${idOffre} a été mise à jour`);
-                        return res.status(200).json({ message: `Offre avec ID ${idOffre} a été mise à jour` });
+                        console.log(`Offre avec nom ${nomOffre} a été mise à jour`);
+                        const updatedOffre = await db.query('SELECT * FROM offres WHERE nomPack = ?', [nomPack]);
+                        return res.status(200).json({ message: `Offre avec nom ${nomOffre} a été mise à jour`, offres: updatedOffre[0]  });
                     });
                 }
             });
@@ -88,29 +90,29 @@ async function updateOffre(req, res) {
 //supprimer offre
 async function deleteOffre(req, res) {
     try {
-        const idOffre = req.params.id;
+        const nomPack = req.params.nomPack;
 
         // check if the offre with the given ID exists
         db.getConnection(async (err, connection) => {
             if (err) throw err;
-            const sqlSearch = 'SELECT * FROM offres WHERE idOffre = ?';
-            const searchQuery = mysql.format(sqlSearch, [idOffre]);
+            const sqlSearch = 'SELECT * FROM offres WHERE nomPack = ?';
+            const searchQuery = mysql.format(sqlSearch, [nomPack]);
             await connection.query(searchQuery, async (err, result) => {
                 if (err) throw err;
                 if (result.length === 0) {
                     connection.release();
-                    console.log(`Offre avec ID ${idOffre} n'existe pas`);
-                    return res.status(404).json({ message: `Offre avec ID ${idOffre} n'existe pas` });
+                    console.log(`Offre ${nom} n'existe pas`);
+                    return res.status(404).json({ message: `Offre ${nomPack} n'existe pas` });
                 }
                 else {
                     // delete the existing offre record
-                    const sqlDelete = 'DELETE FROM offres WHERE idOffre=?';
-                    const deleteQuery = mysql.format(sqlDelete, [idOffre]);
+                    const sqlDelete = 'DELETE FROM offres WHERE nomPack=?';
+                    const deleteQuery = mysql.format(sqlDelete, [nomPack]);
                     await connection.query(deleteQuery, async (err, result) => {
                         connection.release();
                         if (err) throw err;
-                        console.log(`Offre avec ID ${idOffre} a été supprimée`);
-                        return res.status(200).json({ message: `Offre avec ID ${idOffre} a été supprimée` });
+                        console.log(`Offre ${nomPack} a été supprimée`);
+                        return res.status(200).json({ message: `Offre ${nomPack} a été supprimée` });
                     });
                 }
             });
@@ -143,9 +145,33 @@ async function getOffres(req, res) {
     }
 };
 
+async function getAnnonceursFactures(req, res) {
+    db.getConnection(async (err, connection) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).send('Failed to connect to database');
+        }
+        const sqlSearchFacture = 'SELECT * FROM factures';
+        const searchQueryFacture = mysql.format(sqlSearchFacture);
+
+        connection.query(searchQueryFacture, (err, facture) => {
+            if (err) {
+                console.error(err);
+                reject('Failed to fetch facture from database');
+            }
+            if (!facture.length) {
+                console.log(`0 factures`);
+                return res.status(500).send(`0 factures`);
+            }
+            res.send(facture);
+        });
+    });
+}
+
 module.exports = {
     createOffre,
     updateOffre,
     deleteOffre,
-    getOffres
+    getOffres,
+    getAnnonceursFactures
 }

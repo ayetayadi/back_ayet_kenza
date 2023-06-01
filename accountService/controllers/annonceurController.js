@@ -5,7 +5,7 @@ const db = require('../../config/connect');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const shortid = require('shortid');
-const { getReceivedToken } = require('../consume');
+
 const mysql = require('mysql');
 
 //annonceur's profile
@@ -46,6 +46,7 @@ async function editProfile(req, res) {
         if (results.affectedRows == 0) {
           return res.status(404).json({ message: "Annonceur n'existe pas!!" });
         }
+        console.log('Annonceur est mis à jour');
         return res.status(200).json({ message: "Annonceur est mis à jour!!" });
 
       }
@@ -56,56 +57,46 @@ async function editProfile(req, res) {
   })
 };
 
-//change password of the annonceur
-async function changePassword(req, res) {
-  const annonceur = req.body;
-  const email = req.body.email;
-  console.log(email);
-  let salt = await bcrypt.genSalt(10);
-  let hashedOldPassword = '';
-  let hashedNewPassword = '';
-
-  if (annonceur.oldPassword) {
-    hashedOldPassword = await bcrypt.hash(annonceur.oldPassword, salt);
-  }
-
-  if (annonceur.newPassword) {
-    hashedNewPassword = await bcrypt.hash(annonceur.newPassword, salt);
-  }
-
+async function getPermission(req, res) {
+  const id_annonceur = req.decodedToken;
   db.getConnection(async (err, connection) => {
-    if (err) throw (err);
-    const sqlSearch = "SELECT * FROM annonceurs WHERE email = ?";
-    const search_query = mysql.format(sqlSearch, [email]);
-    await connection.query(search_query, async (err, result) => {
-      if (!err) {
-        if (result.length <= 0) {
-          return res.status(400).json({ message: "Incorrect Old Password" })
+    if (err) {
+      console.error(err);
+      return res.status(500).send('An error occurred');
+    }
+
+    try {
+      const sqlSearch = 'SELECT typeOffre FROM annonceurs WHERE id = ?';
+      const searchQuery = mysql.format(sqlSearch, [id_annonceur]);
+
+      connection.query(searchQuery, async (err, annonceur) => {
+        if (err) {
+          console.error(err);
+          return res.status(500).send('Failed to fetch annonceur from database');
         }
-        else {
-          const passwordMatch = await bcrypt.compare(annonceur.oldPassword, result[0].password);
-          if (passwordMatch) {
-            const sqlUpdate = "UPDATE annonceurs SET password = ? WHERE email = ?";
-            const update_query = mysql.format(sqlUpdate, [hashedNewPassword, email]);
-            await connection.query(update_query, async (err, result) => {
-              if (!err) {
-                console.log("Password Changed!!");
-                return res.status(200).json({ message: "Password Updated Successfully!!" })
-              }
-              else {
-                return res.status(500).json(err);
-              }
-            })
-          } else {
-            return res.status(400).json({ message: "Incorrect Old Password" });
-          }
+
+        const typeOffre = annonceur[0].typeOffre; // Access the appropriate column value
+
+        if (typeOffre === "Essentiel") {
+          return res.status(200).json({ typeOffre: 'Essentiel' });
+        } else if (typeOffre === "Standard") {
+          return res.status(200).json({ typeOffre: 'Standard' });
+        } else if (typeOffre === "Premium") {
+          return res.status(200).json({ typeOffre: 'Premium' });
+        } else {
+          return res.status(200).json({ typeOffre: 'Unknown' }); // Handle other cases if needed
         }
-      }
-      else {
-        return res.status(500).json(err);
-      }
-    });
+
+      });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).send('An error occurred');
+    }
   });
+}
+
+module.exports = {
+  getPermission
 };
 
 
@@ -116,5 +107,5 @@ async function changePassword(req, res) {
 module.exports = {
   profile,
   editProfile,
-  changePassword
+  getPermission
 }

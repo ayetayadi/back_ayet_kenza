@@ -1,0 +1,8 @@
+{ 
+  "realm": "<REALM>", 
+  "bearer-only":"vrai", 
+  "auth-server-url": "<AUTH_URL>", 
+  "ssl-required": "external", 
+  "resource": "<CLIENT >", 
+  "port-confidentiel": 0 
+}

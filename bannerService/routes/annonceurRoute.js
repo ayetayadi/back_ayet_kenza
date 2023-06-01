@@ -11,6 +11,7 @@ router.get('/getAllBannersByAnnonceur', middleware.verifyTokenId, annonceurContr
 router.get('/getBannerById/:id_banner', annonceurController.getBannerById);
 router.put('/updateBannerById/:id_banner', annonceurController.updateBannerById);
 router.delete('/deleteBanner/:nom_campagne/:nom', middleware.verifyTokenId, annonceurController.deleteBanner);
+router.delete('/deleteAllBanners/:nom_campagne', middleware.verifyTokenId, annonceurController.deleteAllBanners);
 router.put('/updateBanner/:nom_campagne/:nom',middleware.verifyTokenId, annonceurController.updateBanner);
 router.get('/getRapportByBanner/:nom_campagne/:nom', annonceurController.getRapportByBanner);
 

@@ -1,16 +1,15 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
-const { getReceivedToken } = require('../consume');
 
 function generateToken(id, username, email, dateNaiss, tel, nomE, emailE,telE, domaineE, adresseE) {
   const payload = { id, username, email,dateNaiss, tel, nomE, emailE,telE, domaineE, adresseE };
-  const token = jwt.sign(payload, process.env.TOKEN, { expiresIn: '24h' });
+  const token = jwt.sign(payload, process.env.ACCES_TOKEN_SECRET, { expiresIn: '24h' });
   return token;
 }
 
 //get From Token the data of annonceur
 function verifyToken(req, res, next) {
-  let token = getReceivedToken();
+  let token = req.query.token;
   let decodedToken = { id: '', email: '', username: '', dateNaiss: '', tel: '', nomE: '', emailE: '', telE:'', domaineE: '', adresseE: '' };
 
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, tokendata) {
@@ -38,23 +37,24 @@ function verifyToken(req, res, next) {
 
 //get From Token the Id of annonceur
 function verifyTokenId(req, res, next) {
-  let token = getReceivedToken();
+  let token = req.query.token;
 
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, tokendata) {
     if (err) {
       console.log(err);
       return res.status(400).json({ message: 'Unauthorized request' });
     }
-    if (tokendata) {
+    if (tokendata && tokendata.annonceur && tokendata.annonceur.id) {
       req.decodedToken = tokendata.annonceur.id;
       next();
+    } else {
+      return res.status(400).json({ message: 'Invalid token data' });
     }
   });
 }
-
 //get From Token the email of annonceur
 function verifyTokenEmail(req, res, next) {
-  let token = getReceivedToken();
+  let token = req.query.token;
 
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, tokendata) {
     if (err) {
@@ -69,7 +69,7 @@ function verifyTokenEmail(req, res, next) {
 }
 
 function verifyTokenUsername(req, res, next) {
-  let token = getReceivedToken();
+  let token = req.query.token;
 
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, tokendata) {
     if (err) {

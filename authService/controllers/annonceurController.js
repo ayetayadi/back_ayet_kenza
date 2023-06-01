@@ -3,7 +3,6 @@ const bcrypt = require('bcrypt');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const db = require('../../config/connect.js');
-const { publishAuthMessage } = require('../produce');
 const Joi = require('joi');
 
 //register Annonceur
@@ -33,10 +32,11 @@ async function register(req, res) {
     if (err) {
       throw err;
     } else {
+     
       const sqlSearch = "SELECT * FROM annonceurs WHERE email = ?";
       const search_query = mysql.format(sqlSearch, [email]);
-      const sqlInsert = "INSERT INTO annonceurs(username, email, password, dateNaiss, tel, nomE, emailE, telE, domaineE, adresseE) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-      const insert_query = mysql.format(sqlInsert, [username, email, hashedPassword, dateNaiss, tel, nomE, emailE, telE, domaineE, adresseE]);
+      const sqlInsert = "INSERT INTO annonceurs(username, email, password, dateNaiss, tel, nomE, emailE, telE, domaineE, adresseE, typeOffre) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+      const insert_query = mysql.format(sqlInsert, [username, email, hashedPassword, dateNaiss, tel, nomE, emailE, telE, domaineE, adresseE, "n'a pas fait le paiement"]);
 
       await connection.query(search_query, async (err, result) => {
         if (err) {
@@ -47,7 +47,7 @@ async function register(req, res) {
           if (result.length != 0) {
             connection.release();
             console.log("------> Annonceur already exists");
-            res.sendStatus(409);
+            res.status(200).json({ message:  "Annonceur already exists" });
           } else {
             await connection.query(insert_query, (err, result) => {
               connection.release();
@@ -55,7 +55,7 @@ async function register(req, res) {
                 throw err;
               } else {
                 console.log("--------> Nouveau Annonceur Créé");
-                res.sendStatus(200);
+                res.status(200).json({ message:  "Nouveau Annonceur Créé" });
               }
             });
           }
@@ -67,63 +67,71 @@ async function register(req, res) {
 
 //login Annonceur
 async function login(req, res) {
-
-  const annonceur = req.body.email;
+  const annonceurEmail = req.body.email;
   const password = req.body.password;
   const rememberMe = req.body.rememberMe;
 
-
   db.getConnection(async (err, connection) => {
-    if (err) throw (err)
+    if (err) throw err;
+
     const sqlSearch = 'SELECT * FROM annonceurs WHERE email = ?';
-    const search_query = mysql.format(sqlSearch, [annonceur]);
-    await connection.query(search_query, async (err, result) => {
-      connection.release()
-      if (err) throw (err)
-      if (result.length == 0) {
-        console.log('--------> Annonceur does not exist')
-        res.sendStatus(404)
+    const searchQuery = mysql.format(sqlSearch, [annonceurEmail]);
+
+    await connection.query(searchQuery, async (err, result) => {
+      if (err) {
+        connection.release();
+        throw err;
       }
-      else {
-        const hashedPassword = result[0].password;
-        if (await bcrypt.compare(password, hashedPassword)) {
-          const annonceur = {
-            id: result[0].id,
-            username: result[0].username,
-            email: result[0].email,
-            password: result[0].password,
-            tel: result[0].tel,
-            dateNaiss: result[0].dateNaiss,
-            nomE: result[0].nomE,
-            emailE: result[0].emailE,
-            telE: result[0].telE,
-            domaineE: result[0].domaineE,
-            adresseE: result[0].adresseE,
-          
+
+      if (result.length === 0) {
+        connection.release();
+        console.log('Annonceur does not exist');
+        return res.sendStatus(404);
+      }
+
+      const hashedPassword = result[0].password;
+      if (await bcrypt.compare(password, hashedPassword)) {
+        const annonceur = {
+          id: result[0].id,
+          username: result[0].username,
+          email: result[0].email,
+          password: result[0].password,
+          tel: result[0].tel,
+          dateNaiss: result[0].dateNaiss,
+          nomE: result[0].nomE,
+          emailE: result[0].emailE,
+          telE: result[0].telE,
+          domaineE: result[0].domaineE,
+          adresseE: result[0].adresseE,
+        };
+
+        const accessToken = jwt.sign({ annonceur }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
+        const refreshToken = jwt.sign({ annonceur }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '15d' });
+
+        const updateTokenQuery = 'UPDATE annonceurs SET token = ? WHERE id = ?';
+        const updateTokenValues = [accessToken, result[0].id];
+        connection.query(updateTokenQuery, updateTokenValues, (err, updateTokenResult) => {
+          connection.release();
+          if (err) {
+            throw err;
           }
-          const accessToken = jwt.sign({ annonceur }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
-          const refreshToken = jwt.sign({ annonceur }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '15d' });
+          console.log('Token updated successfully in annonceurs table');
 
-          
-
-          res.cookie('accessToken', refreshToken, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }); // un jour
-          res.cookie('refreshToken', refreshToken, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 }); // une semaine
+          res.cookie('accessToken', refreshToken, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }); // one day
+          res.cookie('refreshToken', refreshToken, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 }); // one week
 
           res.status(200).json({ accessToken: accessToken });
-
-          console.log('---------> Login Annonceur Successful')
-
-          publishAuthMessage(accessToken);
-
-        }
-        else {
-          console.log('---------> Annonceur\'s Email or Password are invalid')
-          res.status(400).send('Invalid credentials!')
-        }
+          console.log('Login Annonceur Successful');
+        });
+      } else {
+        connection.release();
+        console.log('Annonceur\'s Email or Password is invalid');
+        res.status(400).send('Invalid credentials!');
       }
-    })
-  })
-};
+    });
+  });
+}
+
 
 async function refreshToken(req, res) {
   try {

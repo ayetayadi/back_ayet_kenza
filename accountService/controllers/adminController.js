@@ -3,7 +3,6 @@ const bcrypt = require('bcrypt');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const db = require('../../config/connect');
-const { getReceivedToken } = require('../consume');
 const { promisify } = require('util');
 db.query = { promisify }.promisify(db.query);
 const crypto = require('crypto');
@@ -14,7 +13,7 @@ const shortid = require('shortid');
 async function getAll(req, res) {
     db.getConnection(async (err, connection) => {
         if (err) throw (err);
-        const sqlSearch = "SELECT id, username, email FROM annonceurs";
+        const sqlSearch = "SELECT id, username, email,tel, nomE, emailE,adresseE, domaineE, typeOffre  FROM annonceurs";
         await connection.query(sqlSearch, async (err, result) => {
             if (err) throw (err);
             if (result.length == 0) {
@@ -28,7 +27,7 @@ async function getAll(req, res) {
     });
 };
 
-//Delete Annocneur from Admin
+//Delete Annonceur from Admin
 async function deleteAnnonceur(req, res) {
     const email = req.params.email;
     db.getConnection(async (err, connection) => {
@@ -46,19 +45,23 @@ async function deleteAnnonceur(req, res) {
                     res.sendStatus(404);
                 } else {
                     const sqlDelete = `
-                        SET SQL_SAFE_UPDATES = 0;
-                        START TRANSACTION;
-                        DELETE FROM appartient WHERE id_equipe IN (SELECT id FROM equipes WHERE id_annonceur IN (SELECT id FROM annonceurs WHERE email = ?));
-                        DELETE FROM membres WHERE id IN (SELECT id_membre FROM appartient);
-                        DELETE FROM equipes WHERE id_annonceur IN (SELECT id FROM annonceurs WHERE email = ?);
-                        DELETE FROM annonceurs WHERE email = ?;
-                        COMMIT;
-                    `;
+    SET SQL_SAFE_UPDATES = 0;
+    START TRANSACTION;
+    DELETE FROM membres WHERE id IN (SELECT id_membre FROM appartient WHERE id_equipe IN (SELECT id FROM equipes WHERE id_annonceur IN (SELECT id FROM annonceurs WHERE email = ?)));
+    DELETE FROM appartient WHERE id_equipe IN (SELECT id FROM equipes WHERE id_annonceur IN (SELECT id FROM annonceurs WHERE email = ?));
+    DELETE FROM equipes WHERE id_annonceur IN (SELECT id FROM annonceurs WHERE email = ?);
+    DELETE FROM factures WHERE id_paiement IN (SELECT id FROM paiements WHERE email_annonceur = ?);
+    DELETE FROM paiements WHERE id_annonceur IN (SELECT id FROM annonceurs WHERE email = ?);
+    DELETE FROM campagnes WHERE id_annonceur IN (SELECT id FROM annonceurs WHERE email = ?);
+    DELETE FROM annonceurs WHERE email = ?;
+    COMMIT;
+`;
                     const delete_query = {
                         sql: sqlDelete,
-                        values: [email, email, email],
+                        values: [email, email, email, email, email, email, email],
                         multipleStatements: true
                     };
+
                     await connection.query(delete_query, async (err, result) => {
                         connection.release();
                         if (err) {
@@ -70,7 +73,7 @@ async function deleteAnnonceur(req, res) {
                             return res.status(404).send('No annonceur found');
                         }
                         res.status(200).send({ message: 'Annonceur deleted successfully' });
-                        console.log("Annoceur Deleted succesfully!!")
+                        console.log("Annonceur Deleted succesfully!!")
                     });
                 }
             });
@@ -163,7 +166,7 @@ async function addAnnonceur(req, res) {
                         html:
                             `<p><b>Vous avez été ajouté pour rejoindre Banner avec mot de passe ${password}</b><br><a href="http://localhost:4200/">Cliquez ici pour se connecter au Banner</a></p>`,
                     };
-    
+
                     transporter.sendMail(mailOptions, function (err, info) {
                         if (err) {
                             console.log(err);
@@ -171,13 +174,12 @@ async function addAnnonceur(req, res) {
                                 .status(500)
                                 .json({ message: "An error occurred while sending the email." });
                         }
-    
+
                         console.log("Email envoyé: " + info.response);
-                        return res
-                            .status(200)
-                            .json({ message: "Ajouté Annonceur." });
+                        res.status(200).json({ success: true, message: 'Annonceur ajouté ', annonceur: newAnnonceur[0] });
+
                     })
-                
+
                 });
             }
         });
@@ -192,3 +194,5 @@ module.exports = {
     editAnnonceur,
     addAnnonceur
 }
+
+

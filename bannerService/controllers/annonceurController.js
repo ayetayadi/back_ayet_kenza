@@ -7,7 +7,6 @@ const multer = require('multer');
 const path = require('path');
 const sharp = require('sharp');
 const { generateHTMLCode } = require('../middlewares/bannerMiddleware');
-const { getReceivedToken } = require('../consume');
 const shortid = require('shortid');
 
 
@@ -89,27 +88,37 @@ async function createBannerUpload(req, res) {
         };
 
 
-        // Create the report for the newly created banner with random metrics
-        const rapport = {
-            nom: newBanner.nom,
-            vues: Math.floor(Math.random() * 1000),
-            clicks: Math.floor(Math.random() * 100),
-            impressions: Math.floor(Math.random() * 5000),
-            conversions: Math.floor(Math.random() * 10),
-            startDate: newBanner.startDate,
-            endDate: newBanner.endDate,
-            startTime: newBanner.startTime,
-            endTime: newBanner.endTime,
-            id_banner: newBanner.id
-        }
-        const [createdBanner, createdContainerDef, createdContainerDeff] = await Promise.all([
+        const newContainerDef = {
+            nom: req.body.nom,
+            nom_campagne: req.params.nom_campagne,
+            description: req.body.description || null,
+            width, 
+            height, 
+            callToAction: req.body.callToAction,
+            createdAt: (new Date().toISOString().replace(/:/g, "-")),
+            updateAt: 'Pas de modification',
+            startDate: req.body.startDate,
+            endDate: req.body.endDate,
+            startTime: req.body.startTime,
+            endTime: req.body.endTime,
+            title: req.body.title,
+            subtitle: req.body.subtitle || null,
+            htmlcode,
+            status: 'par téléchargement',
+            placeholder: req.body.placeholder || null,
+            plateformeType: req.body.plateformeType || null,
+            image: imageUrl,
+          };
+      
+        const [createdBanner, createdContainerDef] = await Promise.all([
             container.items.create(newBanner),
-            containerdef.items.create(newBanner, { id_admin: 0 }),
-            containerdeff.items.create(rapport)
+            containerdef.items.create(newContainerDef, { id_admin: 0, statusPermission: 'en attente' }),
         ]);
 
+        await generateRapport(containerdeff, newBanner);
 
-        return res.status(201).json({ success: true, message: 'Created successfully!' });
+
+        return res.status(201).json({ success: true, message: 'La bannière est créée avec succés!' });
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, message: 'Error creating banner in Cosmos DB' });
@@ -183,8 +192,10 @@ async function createBannerEditor(req, res) {
             height, // use image height retrieved by sharp
             callToAction: req.body.callToAction,
             createdAt: (new Date().toISOString().replace(/:/g, "-")),
-            updateAt: (new Date().toISOString().replace(/:/g, "-")),
+            updateAt: 'Pas de modification',
             startDate: req.body.startDate,
+            startTime: req.body.startTime,
+            endTime: req.body.endTime,
             endDate: req.body.endDate,
             title: req.body.title,
             subtitle: req.body.subtitle || null,
@@ -194,33 +205,39 @@ async function createBannerEditor(req, res) {
             plateformeType: req.body.plateformeType || null,
             image: imageUrl, // save image URL to CosmosDB container
             id_campagne: id_campagne,
-            reportRef: shortid.generate(),
-            statusPermission: 'en attente'
-        };
-
-        // Create the report for the newly created banner with random metrics
-        const rapport = {
-            nom: newBanner.nom,
-            vues: Math.floor(Math.random() * 1000),
-            clicks: Math.floor(Math.random() * 100),
-            impressions: Math.floor(Math.random() * 5000),
-            conversions: Math.floor(Math.random() * 10),
-            startDate: newBanner.startDate,
-            endDate: newBanner.endDate,
-            startTime: newBanner.startTime,
-            endTime: newBanner.endTime,
-            id_banner: newBanner.id
-        }
-        const [createdBanner, createdContainerDef, createdContainerDeff] = await Promise.all([
+           
+               };
+        const newContainerDef = {
+            nom: req.body.nom,
+            nom_campagne: req.params.nom_campagne,
+            description: req.body.description || null,
+            width, 
+            height, 
+            callToAction: req.body.callToAction,
+            createdAt: (new Date().toISOString().replace(/:/g, "-")),
+            updateAt: 'Pas de modification',
+            startDate: req.body.startDate,
+            endDate: req.body.endDate,
+            startTime: req.body.startTime,
+            endTime: req.body.endTime,
+            title: req.body.title,
+            subtitle: req.body.subtitle || null,
+            htmlcode,
+            status: 'par éditeur',
+            placeholder: req.body.placeholder || null,
+            plateformeType: req.body.plateformeType || null,
+            image: imageUrl,
+          };
+      
+        const [createdBanner, createdContainerDef] = await Promise.all([
             container.items.create(newBanner),
-            containerdef.items.create(newBanner, { id_admin: 0 }),
-            containerdeff.items.create(rapport)
+            containerdef.items.create(newContainerDef, { id_admin: 0, statusPermission: 'en attente' }),
         ]);
 
+        await generateRapport(containerdeff, newBanner);
 
-        const { resource } = await container.items.create(newBanner);
 
-        return res.status(201).json({ success: true, message: 'Created successfully!' });
+        return res.status(201).json({ success: true, message: 'La bannière est créée avec succés!' });
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, message: 'Error creating banner in Cosmos DB' });
@@ -282,53 +299,53 @@ async function getAllBannersByCampagne(req, res) {
 
 async function getAllBannersByAnnonceur(req, res) {
     try {
-      const id_annonceur = req.decodedToken;
-  
-      // Get all campaigns for the specified advertiser
-      const campaignsResult = await db.query('SELECT id, nom FROM campagnes WHERE id_annonceur = ?', [id_annonceur]);
-  
-      // Loop through each campaign and get its banners
-      const bannersWithImages = await Promise.all(
-        campaignsResult.map(async (campaign) => {
-          // Query CosmosDB to get all banners for the current campaign
-          const querySpec = {
-            query: 'SELECT * FROM c WHERE c.nom_campagne = @nom_campagne',
-            parameters: [
-              {
-                name: '@nom_campagne',
-                value: campaign.nom
-              }
-            ]
-          };
-          const { resources: banners } = await container.items.query(querySpec).fetchAll();
-  
-          // Pour chaque bannière, afficher l'image from Blob Storage et l'ajouter à l'objet de la bannière
-          const bannersWithImages = await Promise.all(
-            banners.map(async (banner) => {
-              const blobName = path.basename(banner.image);
-              const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-              const downloadBlockBlobResponse = await blockBlobClient.download();
-              const buffer = await streamToBuffer(downloadBlockBlobResponse.readableStreamBody);
-              banner.image = buffer.toString('base64');
-              return { ...banner };
-            })
-          );
-  
-          return bannersWithImages;
-        })
-      );
-  
-      // Concatenate all the banners into a single array
-      const allBanners = bannersWithImages.flat();
-  
-      return res.status(200).json({ success: true, banners: allBanners });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ success: false, message: 'Error retrieving banners from Cosmos DB' });
-    }
-  }
+        const id_annonceur = req.decodedToken;
 
-  
+        // Get all campaigns for the specified advertiser
+        const campaignsResult = await db.query('SELECT id, nom FROM campagnes WHERE id_annonceur = ?', [id_annonceur]);
+
+        // Loop through each campaign and get its banners
+        const bannersWithImages = await Promise.all(
+            campaignsResult.map(async (campaign) => {
+                // Query CosmosDB to get all banners for the current campaign
+                const querySpec = {
+                    query: 'SELECT * FROM c WHERE c.nom_campagne = @nom_campagne',
+                    parameters: [
+                        {
+                            name: '@nom_campagne',
+                            value: campaign.nom
+                        }
+                    ]
+                };
+                const { resources: banners } = await container.items.query(querySpec).fetchAll();
+
+                // Pour chaque bannière, afficher l'image from Blob Storage et l'ajouter à l'objet de la bannière
+                const bannersWithImages = await Promise.all(
+                    banners.map(async (banner) => {
+                        const blobName = path.basename(banner.image);
+                        const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+                        const downloadBlockBlobResponse = await blockBlobClient.download();
+                        const buffer = await streamToBuffer(downloadBlockBlobResponse.readableStreamBody);
+                        banner.image = buffer.toString('base64');
+                        return { ...banner };
+                    })
+                );
+
+                return bannersWithImages;
+            })
+        );
+
+        // Concatenate all the banners into a single array
+        const allBanners = bannersWithImages.flat();
+
+        return res.status(200).json({ success: true, banners: allBanners });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Error retrieving banners from Cosmos DB' });
+    }
+}
+
+
 async function getAllBanners(req, res) {
     try {
         const id_annonceur = req.decodedToken;
@@ -370,8 +387,6 @@ async function getAllBanners(req, res) {
         res.status(500).json({ success: false, message: 'Error retrieving banners from Cosmos DB' });
     }
 }
-
-
 
 //Get Banner by ID
 async function getBannerById(req, res) {
@@ -417,7 +432,6 @@ async function getBannerById(req, res) {
         res.status(500).send("Error getting banner from Cosmos DB");
     }
 }
-
 
 async function updateBanner(req, res) {
     try {
@@ -528,8 +542,6 @@ async function updateBanner(req, res) {
     }
 
 }
-
-
 async function updateBannerById(req, res) {
     try {
         const id_banner = req.params.id_banner;
@@ -613,7 +625,6 @@ async function updateBannerById(req, res) {
 }
 
 
-
 async function deleteBanner(req, res) {
     try {
         const id_annonceur = req.decodedToken;
@@ -664,6 +675,45 @@ async function deleteBanner(req, res) {
     }
 }
 
+async function deleteAllBanners(req, res) {
+    try {
+        const id_annonceur = req.decodedToken;
+        const campagneResult = await db.query('SELECT id FROM campagnes WHERE nom = ? AND id_annonceur = ?', [
+            req.params.nom_campagne,
+            id_annonceur,
+        ]);
+
+        if (campagneResult.length === 0) {
+            return res.status(400).json({ success: false, message: 'Invalid campagne' });
+        }
+
+        const id_campagne = campagneResult[0].id;
+
+        const querySpec = {
+            query: 'SELECT * FROM c WHERE c.nom_campagne = @nom_campagne',
+            parameters: [
+                {
+                    name: '@nom_campagne',
+                    value: req.params.nom_campagne,
+                },
+            ],
+        };
+
+        const { resources: banners } = await container.items.query(querySpec).fetchAll();
+
+        if (banners.length === 0) {
+            return res.status(400).json({ success: false, message: `Aucune bannière trouvée pour la campagne ${req.params.nom_campagne}` });
+        }
+
+
+        return res.status(200).json({ success: true, message: `Toutes les bannières de la campagne ${req.params.nom_campagne} ont été supprimées avec succès` });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ success: false, message: 'Erreur lors de la suppression des bannières' });
+    }
+}
+
+
 // Helper function to convert stream to buffer
 function streamToBuffer(readableStream) {
     return new Promise((resolve, reject) => {
@@ -677,6 +727,22 @@ function streamToBuffer(readableStream) {
         readableStream.on("error", reject);
     });
 }
+
+async function generateRapport(containerdeff, newBanner) {
+        return {
+            nom: newBanner.nom,
+            vues: Math.floor(Math.random() * 1000),
+            clicks: Math.floor(Math.random() * 100),
+            impressions: Math.floor(Math.random() * 5000),
+            conversions: Math.floor(Math.random() * 10),
+            startDate: newBanner.startDate,
+            endDate: newBanner.endDate,
+            startTime: newBanner.startTime,
+            endTime: newBanner.endTime,
+            id_banner: newBanner.id
+        };
+    }
+  
 
 async function getRapportByBanner(req, res) {
     try {
@@ -730,6 +796,7 @@ module.exports = {
     updateBanner,
     updateBannerById,
     deleteBanner,
+    deleteAllBanners,
     getAllBanners,
     getAllBannersByAnnonceur,
     getRapportByBanner

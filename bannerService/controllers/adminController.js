@@ -11,7 +11,6 @@ const multer = require('multer');
 const path = require('path');
 const sharp = require('sharp');
 const { generateHTMLCode } = require('../middlewares/bannerMiddleware');
-const { getReceivedToken } = require('../consume');
 const { promisify } = require('util');
 const Cookies = require('js-cookie');
 const crypto = require('crypto');
@@ -102,7 +101,7 @@ async function authoriserBanner(req, res) {
     };
     const { resources: banner } = await containerdef.items.query(querySpec).fetchAll();
     if (!banner || banner.length === 0) {
-      return res.status(400).json({ success: false, message: `Banner ${bannerName} not found` });
+      return res.status(400).json({ success: false, message: `La bannière ${bannerName} n'existe pas` });
     }
 
     // Update the autorisations document
@@ -137,9 +136,9 @@ async function authoriserBanner(req, res) {
 
     const { resource:update1 } = await containerdef.item(updatedAutorisation.id, updatedAutorisation.nom).replace(updatedAutorisation);
 
-    const campagneResult = await db.query('SELECT id_annonceur FROM campagnes WHERE id = ?', [autorisations[0].id_campagne]);
+    const campagneResult = await db.query('SELECT id_annonceur FROM campagnes WHERE nom = ?', [autorisations[0].nom_campagne]);
     if (campagneResult.length === 0) {
-      return res.status(400).json({ success: false, message: `Pas d'annonceur dans ce campagne ${autorisations[0].id_campagne}` });
+      return res.status(400).json({ success: false, message: `Pas d'annonceur dans ce campagne ${autorisations[0].nom_campagne}` });
     }
     const id_annonceur = campagneResult[0].id_annonceur;
 
@@ -240,14 +239,14 @@ async function getAllBannersAuthorisationsByAnnonceur(req, res) {
 // Helper function to convert stream to buffer
 function streamToBuffer(readableStream) {
   return new Promise((resolve, reject) => {
-    const chunks = [];
-    readableStream.on("data", (data) => {
-      chunks.push(data instanceof Buffer ? data : Buffer.from(data));
-    });
-    readableStream.on("end", () => {
-      resolve(Buffer.concat(chunks));
-    });
-    readableStream.on("error", reject);
+      const chunks = [];
+      readableStream.on("data", (data) => {
+          chunks.push(data instanceof Buffer ? data : Buffer.from(data));
+      });
+      readableStream.on("end", () => {
+          resolve(Buffer.concat(chunks));
+      });
+      readableStream.on("error", reject);
   });
 }
 

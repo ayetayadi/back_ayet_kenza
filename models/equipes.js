@@ -2,8 +2,9 @@ const db = require('../config/connect');
 
 db.query(`CREATE TABLE equipes (
   id INT NOT NULL AUTO_INCREMENT,
-  nom VARCHAR(255),
+  nom NOT NULL VARCHAR(255),
   id_annonceur INT,
+  nom_campagne NOT NULLVARCHAR(255),
   PRIMARY KEY (id, id_annonceur),
   FOREIGN KEY (id_annonceur) REFERENCES annonceurs(id)
 );`, (err, result) => {

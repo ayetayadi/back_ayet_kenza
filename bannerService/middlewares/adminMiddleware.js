@@ -1,10 +1,9 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
-const { getReceivedToken } = require('../consume');
 
 function generateToken(id, username, email, dateNaiss, tel, nomE, emailE,telE, domaineE, adresseE) {
   const payload = { id, username, email,dateNaiss, tel, nomE, emailE,telE, domaineE, adresseE };
-  const token = jwt.sign(payload, process.env.TOKEN, { expiresIn: '24h' });
+  const token = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '24h' });
   return token;
 }
 
@@ -30,23 +29,25 @@ function verifyToken(req, res, next) {
 
 //get From Token the Id of admin
 function verifyTokenId(req, res, next) {
-  let token = getReceivedToken();
+  let token = req.query.token;
 
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, tokendata) {
     if (err) {
       console.log(err);
       return res.status(400).json({ message: 'Unauthorized request' });
     }
-    if (tokendata) {
+    if (tokendata && tokendata.admin && tokendata.admin.id) {
       req.decodedToken = tokendata.admin.id;
       next();
+    } else {
+      return res.status(400).json({ message: 'Invalid token data' });
     }
   });
 }
 
 //get From Token the email of admin
 function verifyTokenEmail(req, res, next) {
-  let token = getReceivedToken();
+  let token = req.query.token;
 
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, tokendata) {
     if (err) {

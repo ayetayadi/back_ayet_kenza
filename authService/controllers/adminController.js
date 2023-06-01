@@ -5,7 +5,6 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const db = require('../../config/connect.js');
-const { publishAuthMessage } = require('../produce');
 
 //add admin
 async function add(req, res) {
@@ -57,7 +56,7 @@ async function login(req, res) {
 
       if (err) throw (err)
       if (result.length == 0) {
-        console.log("--------> Admin does not exist")
+        console.log("--------> Ce n'est pas l'administrateur")
         res.sendStatus(404)
       }
       else {
@@ -88,8 +87,6 @@ async function login(req, res) {
             res.status(200).json({ accessToken: accessToken });
   
             console.log('---------> Login Admin Successful')
-  
-            publishAuthMessage(accessToken);
 
         }
         else {
