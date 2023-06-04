@@ -9,7 +9,6 @@ const nodemailer = require('nodemailer');
 const shortid = require('shortid');
 
 //create a team
-
 async function createTeam(req, res) {
   const nom = req.body.nom;
   const nom_campagne = req.body.nom_campagne;
@@ -267,8 +266,8 @@ async function inviteMember(req, res) {
               console.error(error);
               res.status(500).send('Internal server error');
             } else {
-              res.send({ message: "Invitation sent successfully" });
-              console.log('Invitation sent successfully');
+              res.send({ message: "Invitation est envoyée avec succès" });
+              console.log('Invitation est envoyée avec succès');
             }
           });
         });
@@ -277,6 +276,9 @@ async function inviteMember(req, res) {
     });
   });
 }
+
+
+
 
 
 /* //invite member into a team

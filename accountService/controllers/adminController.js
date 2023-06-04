@@ -31,58 +31,71 @@ async function getAll(req, res) {
 async function deleteAnnonceur(req, res) {
     const email = req.params.email;
     db.getConnection(async (err, connection) => {
-        if (err) throw (err);
+        if (err) throw err;
         try {
             await connection.beginTransaction(); // start a transaction
+
             // Check if the annonceur exists
             const sqlSearch = "SELECT * FROM annonceurs WHERE email = ?";
             const search_query = mysql.format(sqlSearch, [email]);
-            await connection.query(search_query, async (err, result) => {
-                if (err) throw (err);
-                if (result.length == 0) {
-                    connection.release();
-                    console.log(`Annonceur avec email ${email} n'existe pas`);
-                    res.sendStatus(404);
-                } else {
-                    const sqlDelete = `
-    SET SQL_SAFE_UPDATES = 0;
-    START TRANSACTION;
-    DELETE FROM membres WHERE id IN (SELECT id_membre FROM appartient WHERE id_equipe IN (SELECT id FROM equipes WHERE id_annonceur IN (SELECT id FROM annonceurs WHERE email = ?)));
-    DELETE FROM appartient WHERE id_equipe IN (SELECT id FROM equipes WHERE id_annonceur IN (SELECT id FROM annonceurs WHERE email = ?));
-    DELETE FROM equipes WHERE id_annonceur IN (SELECT id FROM annonceurs WHERE email = ?);
-    DELETE FROM factures WHERE id_paiement IN (SELECT id FROM paiements WHERE email_annonceur = ?);
-    DELETE FROM paiements WHERE id_annonceur IN (SELECT id FROM annonceurs WHERE email = ?);
-    DELETE FROM campagnes WHERE id_annonceur IN (SELECT id FROM annonceurs WHERE email = ?);
-    DELETE FROM annonceurs WHERE email = ?;
-    COMMIT;
-`;
-                    const delete_query = {
-                        sql: sqlDelete,
-                        values: [email, email, email, email, email, email, email],
-                        multipleStatements: true
-                    };
 
-                    await connection.query(delete_query, async (err, result) => {
-                        connection.release();
-                        if (err) {
-                            console.error(err);
-                            return res.status(500).send('Failed to delete annonceur from database');
-                        }
-                        if (!result && !result[2] && result[2].affectedRows == 0) {
-                            console.log(`No annonceur found for email: ${email}`);
-                            return res.status(404).send('No annonceur found');
-                        }
-                        res.status(200).send({ message: 'Annonceur deleted successfully' });
-                        console.log("Annonceur Deleted succesfully!!")
-                    });
-                }
-            });
+            const rows = await connection.query(search_query);
+
+            if (rows.length === 0) {
+                connection.release();
+                console.log(`Annonceur avec email ${email} n'existe pas`);
+                return res.sendStatus(404);
+            }
+
+            const sqlDeleteAppartient = "DELETE FROM appartient WHERE id_equipe IN (SELECT id FROM equipes WHERE id_annonceur IN (SELECT id FROM annonceurs WHERE email = ?))";
+            const deleteAppartientQuery = mysql.format(sqlDeleteAppartient, [email]);
+
+            await connection.query(deleteAppartientQuery);
+
+            const sqlDeleteMembres = "DELETE FROM membres WHERE id IN (SELECT id_membre FROM appartient WHERE id_equipe IN (SELECT id FROM equipes WHERE id_annonceur IN (SELECT id FROM annonceurs WHERE email = ?)))";
+            const deleteMembresQuery = mysql.format(sqlDeleteMembres, [email]);
+
+            await connection.query(deleteMembresQuery);
+
+            const sqlDeleteEquipes = "DELETE FROM equipes WHERE id_annonceur IN (SELECT id FROM annonceurs WHERE email = ?)";
+            const deleteEquipesQuery = mysql.format(sqlDeleteEquipes, [email]);
+
+            await connection.query(deleteEquipesQuery);
+
+            const sqlDeleteFactures = "DELETE FROM factures WHERE id_paiement IN (SELECT id FROM paiements WHERE email_annonceur = ?)";
+            const deleteFacturesQuery = mysql.format(sqlDeleteFactures, [email]);
+
+            await connection.query(deleteFacturesQuery);
+
+            const sqlDeletePaiements = "DELETE FROM paiements WHERE id_annonceur IN (SELECT id FROM annonceurs WHERE email = ?)";
+            const deletePaiementsQuery = mysql.format(sqlDeletePaiements, [email]);
+
+            await connection.query(deletePaiementsQuery);
+
+            const sqlDeleteCampagnes = "DELETE FROM campagnes WHERE id_annonceur IN (SELECT id FROM annonceurs WHERE email = ?)";
+            const deleteCampagnesQuery = mysql.format(sqlDeleteCampagnes, [email]);
+
+            await connection.query(deleteCampagnesQuery);
+
+            const sqlDeleteAnnonceurs = "DELETE FROM annonceurs WHERE email = ?";
+            const deleteAnnonceursQuery = mysql.format(sqlDeleteAnnonceurs, [email]);
+
+            await connection.query(deleteAnnonceursQuery);
+
+            await connection.commit(); // commit the transaction
+
+            connection.release();
+            res.status(200).send({ message: 'Annonceur deleted successfully' });
+            console.log("Annonceur Deleted successfully!!");
         } catch (err) {
             console.error(err);
+            await connection.rollback(); // rollback the transaction
+            connection.release();
             res.sendStatus(500);
         }
     });
 };
+
 
 
 //edit Annonceur from Admin
@@ -118,14 +131,6 @@ async function editAnnonceur(req, res) {
     });
 };
 
-var transporter = nodemailer.createTransport({
-    service: 'gmail',
-    port: 465,
-    auth: {
-        user: process.env.EMAIL,
-        pass: process.env.PASSWORD
-    }
-})
 
 //addAnnonceur
 async function addAnnonceur(req, res) {
@@ -159,26 +164,9 @@ async function addAnnonceur(req, res) {
                     connection.release();
                     if (err) throw err;
                     console.log(`Annonceur avec email ${email} a été ajouté`);
-                    const mailOptions = {
-                        from: process.env.EMAIL,
-                        to: email,
-                        subject: "Bienvenue au Banner",
-                        html:
-                            `<p><b>Vous avez été ajouté pour rejoindre Banner avec mot de passe ${password}</b><br><a href="http://localhost:4200/">Cliquez ici pour se connecter au Banner</a></p>`,
-                    };
 
-                    transporter.sendMail(mailOptions, function (err, info) {
-                        if (err) {
-                            console.log(err);
-                            return res
-                                .status(500)
-                                .json({ message: "An error occurred while sending the email." });
-                        }
+                    res.status(200).json({ success: true, message: 'Annonceur ajouté ', annonceur: newAnnonceur[0] });
 
-                        console.log("Email envoyé: " + info.response);
-                        res.status(200).json({ success: true, message: 'Annonceur ajouté ', annonceur: newAnnonceur[0] });
-
-                    })
 
                 });
             }

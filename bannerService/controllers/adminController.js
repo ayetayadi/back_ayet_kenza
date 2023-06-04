@@ -250,6 +250,7 @@ function streamToBuffer(readableStream) {
   });
 }
 
+
 module.exports = {
   authoriserBanner,
   getAllBannersAuthorisationsByAnnonceur

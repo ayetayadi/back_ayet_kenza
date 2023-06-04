@@ -168,6 +168,7 @@ async function getAnnonceursFactures(req, res) {
     });
 }
 
+
 module.exports = {
     createOffre,
     updateOffre,

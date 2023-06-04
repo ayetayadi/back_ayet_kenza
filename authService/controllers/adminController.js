@@ -17,8 +17,9 @@ async function add(req, res) {
     if (err) throw err;
     const sqlSearch = "SELECT * FROM admins WHERE email = ?";
     const search_query = mysql.format(sqlSearch, [email]);
-    const sqlInsert = "INSERT INTO admins VALUES (0, ?, ?)";
+    const sqlInsert = "INSERT INTO admins (email, password) VALUES (?, ?)";
     const insert_query = mysql.format(sqlInsert, [email, hashedPassword]);
+    
 
     await connection.query(search_query, async (err, result) => {
       if (err) throw err;
@@ -69,19 +70,34 @@ async function login(req, res) {
             email: result[0].email,
           }
 
-          const accessToken = jwt.sign({ admin }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
+          const accessToken = jwt.sign({ admin }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15d' });
           const refreshToken = jwt.sign({ admin  }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '15d' });
-/*     // Create access token and refresh token
-            const accessToken = jwt.sign({ email:admin }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
-            const refreshToken = jwt.sign({ email:admin }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '15d' });
+
            
             // Set cookies with appropriate expiration times
             const accessTokenMaxAge = rememberMe ? 90 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000; // 90 days if "remember me" checked, else 1 day
             const refreshTokenMaxAge = rememberMe ? 90 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000; // 90 days if "remember me" checked, else 7 days
+            if (rememberMe) {
+              res.cookie('adminRememberMe', 'true', { maxAge: 90 * 24 * 60 * 60 * 1000 });
+              const adminRememberMe = jwt.sign({ admin }, process.env.REMEMBER_ME_SECRET);
+              const updateRememberMeTokenQuery = 'UPDATE admins SET remember_me_token = ? WHERE email = ?';
+              const updateRememberMeTokenValues = [adminRememberMe, result[0].email];
+              
+              connection.query(updateRememberMeTokenQuery, updateRememberMeTokenValues, (err, updateTokenResult) => {
+                if (err) {
+                  throw err;
+                }
+                console.log('Remember me token updated successfully in admins table');
+              });
+            } else {
+              res.cookie('adminRememberMe', 'false', { httpOnly: true });
+            }
+            
+            
             res.cookie('accessToken', accessToken, { httpOnly: true, maxAge: accessTokenMaxAge }); 
-            res.cookie('refreshToken', refreshToken, { httpOnly: true, maxAge: refreshTokenMaxAge }); */
+            res.cookie('refreshToken', refreshToken, { httpOnly: true, maxAge: refreshTokenMaxAge });
           
-          res.cookie('accessToken', refreshToken, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }); // un jour
+          res.cookie('accessToken', accessToken, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }); // un jour
           res.cookie('refreshToken', refreshToken, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 }); // une semaine
   
             res.status(200).json({ accessToken: accessToken });
@@ -156,14 +172,15 @@ async function authenticateAdmin(req, res, next) {
 };
 
 async function logout(req, res) {
-  const refreshToken = req.cookies.refreshToken;
+  const accessToken = req.cookies.accessToken;
+  res.clearCookie('accessToken');
   res.clearCookie('refreshToken');
-  res.cookie('refreshToken', '', { maxAge: 0 });
+  res.clearCookie('annonceurRememberMe');
+  res.cookie('accessToken', '', { maxAge: 0 });
   res.send({
     message: 'success'
   });
 }
-
 
 module.exports = {
   add,

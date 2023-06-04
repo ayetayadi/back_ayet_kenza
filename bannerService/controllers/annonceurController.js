@@ -83,7 +83,6 @@ async function createBannerUpload(req, res) {
             plateformeType: req.body.plateformeType || null,
             image: imageUrl, // save image URL to CosmosDB container
             id_campagne: id_campagne,
-            reportRef: shortid.generate(),
             statusPermission: 'en attente'
         };
 
@@ -92,8 +91,8 @@ async function createBannerUpload(req, res) {
             nom: req.body.nom,
             nom_campagne: req.params.nom_campagne,
             description: req.body.description || null,
-            width, 
-            height, 
+            width,
+            height,
             callToAction: req.body.callToAction,
             createdAt: (new Date().toISOString().replace(/:/g, "-")),
             updateAt: 'Pas de modification',
@@ -108,14 +107,27 @@ async function createBannerUpload(req, res) {
             placeholder: req.body.placeholder || null,
             plateformeType: req.body.plateformeType || null,
             image: imageUrl,
-          };
-      
-        const [createdBanner, createdContainerDef] = await Promise.all([
-            container.items.create(newBanner),
-            containerdef.items.create(newContainerDef, { id_admin: 0, statusPermission: 'en attente' }),
-        ]);
+            statusPermission: 'en attente'
+        };
 
-        await generateRapport(containerdeff, newBanner);
+        const newContainerDeff = {
+            nom: newBanner.nom,
+            vues: Math.floor(Math.random() * 1000),
+            clicks: Math.floor(Math.random() * 100),
+            impressions: Math.floor(Math.random() * 5000),
+            conversions: Math.floor(Math.random() * 10),
+            startDate: newBanner.startDate,
+            endDate: newBanner.endDate,
+            startTime: newBanner.startTime,
+            endTime: newBanner.endTime,
+            id_banner: newBanner.id
+        };
+
+        const [createdBanner, createdContainerDef, createdContainerDeff] = await Promise.all([
+            container.items.create(newBanner),
+            containerdef.items.create(newContainerDef, { id_admin: 0 }),
+            containerdeff.items.create(newContainerDeff),
+          ]);
 
 
         return res.status(201).json({ success: true, message: 'La bannière est créée avec succés!' });
@@ -205,14 +217,14 @@ async function createBannerEditor(req, res) {
             plateformeType: req.body.plateformeType || null,
             image: imageUrl, // save image URL to CosmosDB container
             id_campagne: id_campagne,
-           
-               };
+            statusPermission: 'en attente'
+        };
         const newContainerDef = {
             nom: req.body.nom,
             nom_campagne: req.params.nom_campagne,
             description: req.body.description || null,
-            width, 
-            height, 
+            width,
+            height,
             callToAction: req.body.callToAction,
             createdAt: (new Date().toISOString().replace(/:/g, "-")),
             updateAt: 'Pas de modification',
@@ -227,11 +239,12 @@ async function createBannerEditor(req, res) {
             placeholder: req.body.placeholder || null,
             plateformeType: req.body.plateformeType || null,
             image: imageUrl,
-          };
-      
+            statusPermission: 'en attente'
+        };
+
         const [createdBanner, createdContainerDef] = await Promise.all([
             container.items.create(newBanner),
-            containerdef.items.create(newContainerDef, { id_admin: 0, statusPermission: 'en attente' }),
+            containerdef.items.create(newContainerDef, { id_admin: 0 }),
         ]);
 
         await generateRapport(containerdeff, newBanner);
@@ -728,21 +741,23 @@ function streamToBuffer(readableStream) {
     });
 }
 
+
 async function generateRapport(containerdeff, newBanner) {
-        return {
-            nom: newBanner.nom,
-            vues: Math.floor(Math.random() * 1000),
-            clicks: Math.floor(Math.random() * 100),
-            impressions: Math.floor(Math.random() * 5000),
-            conversions: Math.floor(Math.random() * 10),
-            startDate: newBanner.startDate,
-            endDate: newBanner.endDate,
-            startTime: newBanner.startTime,
-            endTime: newBanner.endTime,
-            id_banner: newBanner.id
-        };
-    }
-  
+    return {
+        nom: newBanner.nom,
+        vues: Math.floor(Math.random() * 1000),
+        clicks: Math.floor(Math.random() * 100),
+        impressions: Math.floor(Math.random() * 5000),
+        conversions: Math.floor(Math.random() * 10),
+        startDate: newBanner.startDate,
+        endDate: newBanner.endDate,
+        startTime: newBanner.startTime,
+        endTime: newBanner.endTime,
+        id_banner: newBanner.id
+    };
+}
+
+
 
 async function getRapportByBanner(req, res) {
     try {

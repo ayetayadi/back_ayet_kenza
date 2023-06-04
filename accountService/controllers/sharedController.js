@@ -6,33 +6,32 @@ const util = require('util');
 const bcrypt = require('bcrypt');
 db.query = util.promisify(db.query);
 
-/*
+// Vérifier le role de l'acteur
 async function verifyRole(req, res) {
-    const token = req.query.token;
-    console.log(`token: ${token}`);
+    let token = req.query.token;
+    console.log(`token ${token}`);
     let decodedToken = {};
-    let decodedTokenM = {};
     let decodedTokenA = { id: '', email: '', username: '', dateNaiss: '', tel: '', nomE: '', emailE: '', telE: '', domaineE: '', adresseE: '' };
     let decodedTokenAd = { id: '', email: '' };
-    let decodedTokenMe = { id: '', email: '', code: ''};
+    let decodedTokenM = { id: '', email: '', code:'' };
 
     try {
         decodedToken = await jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
         decodedTokenA = decodedToken.annonceur ? decodedToken.annonceur : decodedTokenA;
         decodedTokenAd = decodedToken.admin ? decodedToken.admin : decodedTokenA;
-        decodedTokenM = await jwt.verify(token, process.env.ACCESS_MEMEBER_TOKEN_SECRET);
-        decodedTokenMe = decodedTokenM.membre ? decodedTokenM.membre : decodedTokenMe;
+        decodedTokenM = decodedToken.membre ? decodedToken.membre : decodedTokenM;
+
     } catch (err) {
         console.log(err);
         return res.status(400).json({ message: 'Unauthorized request' });
     }
 
     const email = decodedTokenAd.email;
-    console.log(`email de l'admin: ${email}`);
+    console.log(`email de l'admin: ` + email);
     const emailA = decodedTokenA.email;
-    console.log(`email de l'annonceur: ${emailA}`);
+    console.log(`email de l'annonceur: ` + emailA);
     const emailM = decodedTokenM.email;
-    console.log(`email du membre: ${emailM}`);
+    console.log(`email du membre: ` + emailM);
 
     try {
         const adminsQuery = "SELECT * FROM admins WHERE email = ?";
@@ -45,30 +44,39 @@ async function verifyRole(req, res) {
         ]);
 
         if (adminsRows.length > 0) {
-            console.log("admin");
             return res.status(200).json({ role: 'admin' });
+        } else if (annonceursRows.length > 0) {
+            const annonceurData = decodedToken;
+            if (annonceurData.id && annonceurData.username && annonceurData.dateNaiss && annonceurData.tel && annonceurData.nomE && annonceurData.emailE && annonceurData.telE && annonceurData.domaineE && annonceurData.adresseE) {
+                return res.status(200).json({
+                    role: 'annonceur',
+                    id: annonceurData.id,
+                    username: annonceurData.username,
+                    email: emailA,
+                    dateNaiss: annonceurData.dateNaiss,
+                    tel: annonceurData.tel,
+                    nomE: annonceurData.nomE,
+                    emailE: annonceurData.emailE,
+                    telE: annonceurData.telE,
+                    domaineE: annonceurData.domaineE,
+                    adresseE: annonceurData.adresseE,
+                });
+            } else {
+                return res.status(200).json({ role: 'annonceur' });
+            }
         } else if (membresRows.length > 0) {
-            console.log("membre");
-            return res.status(200).json({ role: 'membre' });
-        } else if (annonceursRows.length > 0) {
-            const annonceurData = decodedToken;
-            if (annonceurData.id && annonceurData.username && annonceurData.dateNaiss && annonceurData.tel && annonceurData.nomE && annonceurData.emailE && annonceurData.telE && annonceurData.domaineE && annonceurData.adresseE) {
+            const membreData = decodedTokenM;
+            console.log(membreData);
+            if (membreData.id && membreData.email) {
                 return res.status(200).json({
-                    role: 'annonceur',
-                    id: annonceurData.id,
-                    username: annonceurData.username,
-                    email: emailA,
-                    dateNaiss: annonceurData.dateNaiss,
-                    tel: annonceurData.tel,
-                    nomE: annonceurData.nomE,
-                    emailE: annonceurData.emailE,
-                    telE: annonceurData.telE,
-                    domaineE: annonceurData.domaineE,
-                    adresseE: annonceurData.adresseE,
+                    role: 'membre',
+                    id: membreData.id,
+                    email: membreData.email,
+                    code: membreData.code,
+
                 });
             } else {
-                console.log("annonceur");
-                return res.status(200).json({ role: 'annonceur' });
+                return res.status(200).json({ role: 'membre' });
             }
         } else {
             return res.status(400).json({ message: 'User not found' });
@@ -77,66 +85,7 @@ async function verifyRole(req, res) {
         console.log(err);
         return res.status(500).json({ message: 'Internal server error' });
     }
-}*/
-
-async function verifyRole(req, res) {
-    let token = req.query.token;
-    console.log(`token ${token}`);
-    let decodedToken = {};
-    let decodedTokenA = { id: '', email: '', username: '', dateNaiss: '', tel: '', nomE: '', emailE: '', telE: '', domaineE: '', adresseE: '' };
-    let decodedTokenAd = { id: '', email: '' };
-
-    try {
-        decodedToken = await jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-        decodedTokenA = decodedToken.annonceur ? decodedToken.annonceur : decodedTokenA;
-        decodedTokenAd = decodedToken.admin ? decodedToken.admin : decodedTokenA;
-
-    } catch (err) {
-        console.log(err);
-        return res.status(400).json({ message: 'Unauthorized request' });
-    }
-
-    const email = decodedTokenAd.email;
-    console.log(`email de l'admin: ` + email)
-    const emailA = decodedTokenA.email;
-    console.log(`email de l'annonceur: ` + emailA)
-
-    try {
-        const adminsQuery = "SELECT * FROM admins WHERE email = ?";
-        const annonceursQuery = "SELECT * FROM annonceurs WHERE email = ?";
-        const [adminsRows, annonceursRows] = await Promise.all([
-            db.query(adminsQuery, [email]),
-            db.query(annonceursQuery, [emailA])
-        ]);
-        if (adminsRows.length > 0) {
-            return res.status(200).json({ role: 'admin' });
-        } else if (annonceursRows.length > 0) {
-            const annonceurData = decodedToken;
-            if (annonceurData.id && annonceurData.username && annonceurData.dateNaiss && annonceurData.tel && annonceurData.nomE && annonceurData.emailE && annonceurData.telE && annonceurData.domaineE && annonceurData.adresseE) {
-                return res.status(200).json({
-                    role: 'annonceur',
-                    id: annonceurData.id,
-                    username: annonceurData.username,
-                    email: emailA,
-                    dateNaiss: annonceurData.dateNaiss,
-                    tel: annonceurData.tel,
-                    nomE: annonceurData.nomE,
-                    emailE: annonceurData.emailE,
-                    telE: annonceurData.telE,
-                    domaineE: annonceurData.domaineE,
-                    adresseE: annonceurData.adresseE,
-                });
-            } else {
-                return res.status(200).json({ role: 'annonceur' });
-            }
-        } else {
-            return res.status(400).json({ message: 'User not found' });
-        }
-    } catch (err) {
-        console.log(err);
-        return res.status(500).json({ message: 'Internal server error' });
-    }
-};
+}
 
 async function getToken(req, res) {
     let token = req.query.token;

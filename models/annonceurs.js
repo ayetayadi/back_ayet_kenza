@@ -13,8 +13,9 @@ db.query(`CREATE TABLE annonceurs (
   domaineE VARCHAR(255),
   adresseE VARCHAR(255),
   statut VARCHAR(255),
-  password_reset_token VARCHAR(255),
-  password_reset_token_expiration VARCHAR(255),
+  password_reset_token VARCHAR(800),
+  password_reset_token_expiration VARCHAR(800),
+  remember_me_token VARCHAR(800),
   PRIMARY KEY (id),
   UNIQUE (email)
 

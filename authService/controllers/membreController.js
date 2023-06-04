@@ -8,72 +8,6 @@ const { access } = require('fs');
 
 
 //accept invitation
-/*
-async function acceptInvitation(req, res) {
-    const code = req.body.code;
-
-    db.getConnection(async (err, connection) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).json({ error: 'Failed to connect to the database' });
-        }
-        const sqlSearch = "SELECT * FROM membres WHERE code = ?";
-        const searchQuery = mysql.format(sqlSearch, [code]);
-        await connection.query(searchQuery, async (err, result) => {
-            if (err) {
-                console.error(err);
-                connection.release();
-                return res.status(500).json({ error: 'Failed to fetch invitation from the database' });
-            }
-            if (result.length === 0) {
-                console.log(`No invitation found with code: ${code}`);
-                connection.release();
-                return res.status(404).json({ error: 'No invitation found' });
-            }
-            const id = result[0].id;
-            const email = result[0].email;
-            const accessMemberToken = jwt.sign({ id, email, code }, process.env.ACCESS_MEMEBER_TOKEN_SECRET, { expiresIn: '1h' });
-
-            const sqlUpdateAppartient = "UPDATE appartient SET status = 'accepté' WHERE id_membre = ?";
-            const updateValues = [id];
-            await connection.query(sqlUpdateAppartient, updateValues, async (err, updateResult) => {
-                if (err) {
-                    console.error(err);
-                    connection.release();
-                    return res.status(500).json({ error: 'Failed to update membership in the database' });
-                }
-                const message = 'Invitation accepted successfully';
-
-                
-            const selectAnnonceurQuery = `
-                SELECT a.id AS annonceur_id, a.email AS annonceur_email, a.token AS annonceur_token
-                FROM annonceurs AS a
-                JOIN equipes AS e ON a.id = e.id_annonceur
-                JOIN membres AS m ON e.id = m.id_equipe
-                WHERE m.id = ?`;
-            const selectAnnonceurResult = await connection.query(selectAnnonceurQuery, [id]);
-
-            if (selectAnnonceurResult.length === 0) {
-                connection.release();
-                return res.status(500).json({ error: 'Failed to retrieve annonceur information' });
-            }
-                        const annonceurToken = selectAnnonceurResult[0].annonceur_token;
-
-                const sqlUpdateToken = "UPDATE membres SET accessMemberToken = ? WHERE id = ?";
-                const updateTokenValues = [accessMemberToken, id];
-                await connection.query(sqlUpdateToken, updateTokenValues, async (err, tokenUpdateResult) => {
-                    connection.release();
-                    if (err) {
-                        console.error(err);
-                        return res.status(500).json({ error: 'Failed to update access token in the database' });
-                    }
-            res.json({ annonceurToken, accessMemberToken });
-            console.log('Invitation accepted successfully');
-                });
-            });
-        });
-    });
-}*/
 
 async function acceptInvitation(req, res) {
   const code = req.body.code;
@@ -103,7 +37,7 @@ async function acceptInvitation(req, res) {
 
         const id = result[0].id;
         const email = result[0].email;
-        const accessMemberToken = jwt.sign({ id, email, code }, process.env.ACCESS_MEMEBER_TOKEN_SECRET, { expiresIn: '3h' });
+        const accessMemberToken = jwt.sign({ id, email, code }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '3h' });
         res.cookie('accessMemberToken', accessMemberToken, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 }); // one week
 
         const sqlUpdateAppartient = "UPDATE appartient SET status = 'accepté' WHERE id_membre = ?";
@@ -162,6 +96,7 @@ async function acceptInvitation(req, res) {
                 }
 
                 const token = selectAnnonceurResult[0].token;
+                const idAnn = selectAnnonceurResult[0].id;
 
                 const sqlUpdateToken = "UPDATE membres SET accessMemberToken = ? WHERE id = ?";
                 const updateTokenValues = [accessMemberToken, id];
@@ -171,8 +106,9 @@ async function acceptInvitation(req, res) {
                     console.error(err);
                     return res.status(500).json({ error: 'Failed to update access token in the database' });
                   }
+                  res.cookie('accessMemberToken', accessMemberToken, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }); 
 
-                  res.json({ token, accessMemberToken, nom_campagne });
+                  res.json({ idAnn, accessMemberToken, nom_campagne });
                   
                   console.log('Invitation accepted successfully');
                 });
@@ -189,8 +125,17 @@ async function acceptInvitation(req, res) {
   });
 }
 
+async function logout(req, res) {
+  const memberToken = req.cookies.memberToken;
+  res.clearCookie('memberToken');
+  res.cookie('memberToken', '', { maxAge: 0 });
+  res.send({
+    message: 'success'
+  });
+}
 
 
 module.exports = {
-  acceptInvitation
+  acceptInvitation,
+  logout
 };

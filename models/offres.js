@@ -7,7 +7,6 @@ db.query(`CREATE TABLE offres (
   periodePack VARCHAR(255) NOT NULL,
   prixPack VARCHAR(255) NOT NULL,
   dateCreation DATETIME NOT NULL,
-  id_paiement INT,
   PRIMARY KEY (id),
   UNIQUE (nomPack)
   );`, (err, result) => {

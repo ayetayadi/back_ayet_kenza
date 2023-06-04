@@ -32,7 +32,7 @@ async function register(req, res) {
     if (err) {
       throw err;
     } else {
-     
+
       const sqlSearch = "SELECT * FROM annonceurs WHERE email = ?";
       const search_query = mysql.format(sqlSearch, [email]);
       const sqlInsert = "INSERT INTO annonceurs(username, email, password, dateNaiss, tel, nomE, emailE, telE, domaineE, adresseE, typeOffre) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -47,7 +47,7 @@ async function register(req, res) {
           if (result.length != 0) {
             connection.release();
             console.log("------> Annonceur already exists");
-            res.status(200).json({ message:  "Annonceur already exists" });
+            res.status(200).json({ message: "Annonceur already exists" });
           } else {
             await connection.query(insert_query, (err, result) => {
               connection.release();
@@ -55,7 +55,7 @@ async function register(req, res) {
                 throw err;
               } else {
                 console.log("--------> Nouveau Annonceur Créé");
-                res.status(200).json({ message:  "Nouveau Annonceur Créé" });
+                res.status(200).json({ message: "Nouveau Annonceur Créé" });
               }
             });
           }
@@ -105,9 +105,29 @@ async function login(req, res) {
           adresseE: result[0].adresseE,
         };
 
-        const accessToken = jwt.sign({ annonceur }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
+        const accessToken = jwt.sign({ annonceur }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15d' });
         const refreshToken = jwt.sign({ annonceur }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '15d' });
+        // Set cookies with appropriate expiration times
+        const accessTokenMaxAge = rememberMe ? 90 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000; // 90 days if "remember me" checked, else 1 day
+        const refreshTokenMaxAge = rememberMe ? 90 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000; // 90 days if "remember me" checked, else 7 days
+        if (rememberMe) {
+          res.cookie('annonceurRememberMe', 'true', { maxAge: 90 * 24 * 60 * 60 * 1000 });
+          const annonceurRememberMe = jwt.sign({ annonceur }, process.env.REMEMBER_ME_SECRET);
+          const updateRememberMeTokenQuery = 'UPDATE annonceurs SET remember_me_token = ? WHERE email = ?';
+          const updateRememberMeTokenValues = [annonceurRememberMe, result[0].email];
+          connection.query(updateRememberMeTokenQuery, updateRememberMeTokenValues, (err, updateTokenResult) => {
+            if (err) {
+              connection.release();
+              throw err;
+            }
+            console.log('Remember me token updated successfully in annonceurs table');
+          });
 
+        } else {
+          res.cookie('annonceurRememberMe', 'false', { httpOnly: true });
+        }
+        res.cookie('accessToken', accessToken, { httpOnly: true, maxAge: accessTokenMaxAge });
+        res.cookie('refreshToken', refreshToken, { httpOnly: true, maxAge: refreshTokenMaxAge });
         const updateTokenQuery = 'UPDATE annonceurs SET token = ? WHERE id = ?';
         const updateTokenValues = [accessToken, result[0].id];
         connection.query(updateTokenQuery, updateTokenValues, (err, updateTokenResult) => {
@@ -117,7 +137,7 @@ async function login(req, res) {
           }
           console.log('Token updated successfully in annonceurs table');
 
-          res.cookie('accessToken', refreshToken, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }); // one day
+          res.cookie('accessToken', accessToken, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }); // one day
           res.cookie('refreshToken', refreshToken, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 }); // one week
 
           res.status(200).json({ accessToken: accessToken });
@@ -190,9 +210,11 @@ async function authenticateAnnonceur(req, res, next) {
 };
 
 async function logout(req, res) {
-  const refreshToken = req.cookies.refreshToken;
+  const accessToken = req.cookies.accessToken;
+  res.clearCookie('accessToken');
   res.clearCookie('refreshToken');
-  res.cookie('refreshToken', '', { maxAge: 0 });
+  res.clearCookie('annonceurRememberMe');
+  res.cookie('accessToken', '', { maxAge: 0 });
   res.send({
     message: 'success'
   });

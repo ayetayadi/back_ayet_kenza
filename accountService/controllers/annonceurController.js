@@ -75,7 +75,7 @@ async function getPermission(req, res) {
           return res.status(500).send('Failed to fetch annonceur from database');
         }
 
-        const typeOffre = annonceur[0].typeOffre; // Access the appropriate column value
+        const typeOffre = annonceur[0].typeOffre; 
 
         if (typeOffre === "Essentiel") {
           return res.status(200).json({ typeOffre: 'Essentiel' });
@@ -84,7 +84,7 @@ async function getPermission(req, res) {
         } else if (typeOffre === "Premium") {
           return res.status(200).json({ typeOffre: 'Premium' });
         } else {
-          return res.status(200).json({ typeOffre: 'Unknown' }); // Handle other cases if needed
+          return res.status(200).json({ typeOffre: 'Unknown' });
         }
 
       });
@@ -94,15 +94,6 @@ async function getPermission(req, res) {
     }
   });
 }
-
-module.exports = {
-  getPermission
-};
-
-
-
-
-
 
 module.exports = {
   profile,

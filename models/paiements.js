@@ -2,6 +2,9 @@ const db = require('../config/connect');
 
 db.query(`CREATE TABLE paiements (
   id INT NOT NULL AUTO_INCREMENT,
+  username_annonceur VARCHAR(255) NOT NULL,
+  email_annonceur VARCHAR(255) NOT NULL,
+  tel_annonceur VARCHAR(255) NOT NULL,
   datePaiement DATETIME NOT NULL,
   refPaiement VARCHAR(255) NOT NULL,
   montant VARCHAR(255) NOT NULL,
